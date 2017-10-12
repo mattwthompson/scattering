@@ -1,0 +1,4 @@
+numpy
+mdtraj
+scipy
+itertools
