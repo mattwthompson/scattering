@@ -7,7 +7,7 @@ from scipy.integrate import simps
 
 __all__ = ['structure_factor']
 
-def structure_factor(trj, Q_range=(1, 100)):
+def structure_factor(trj, Q_range=(0.1, 100), n_points=100):
     """Compute the structure factor.
 
     The consdered trajectory must include valid elements.
@@ -20,8 +20,8 @@ def structure_factor(trj, Q_range=(1, 100)):
     ----------
     trj : mdtraj.Trajectory
         A trajectory for which the structure factor is to be computed.
-    Q_range : tuple
-        The minimum and maximum scattering vectors, in `1/nm`, to be consdered.
+    Q : list or np.ndarray
+        Values of the scattering vector, in `1/nm`, to be consdered.
 
     Returns
     -------
@@ -33,13 +33,15 @@ def structure_factor(trj, Q_range=(1, 100)):
     """
     rho = np.mean(trj.n_atoms / trj.unitcell_volumes)
     L = np.min(trj.unitcell_lengths)
-    Q = np.logspace(np.log10(Q_range[0]), np.log10(Q_range[1]))
     elements = set([a.element for a in trj.topology.atoms])
 
     compositions = dict()
     form_factors = dict()
     rdfs = dict()
 
+    Q = np.logspace(np.log10(Q_range[0]),
+                    np.log10(Q_range[1]),
+                    num=n_points)
     S = np.zeros(shape=(len(Q)))
 
     for element in elements:

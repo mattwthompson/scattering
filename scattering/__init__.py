@@ -1,0 +1,1 @@
+from scattering.scattering import structure_factor
