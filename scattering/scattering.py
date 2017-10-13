@@ -7,6 +7,7 @@ from scipy.integrate import simps
 
 __all__ = ['structure_factor']
 
+
 def structure_factor(trj, Q_range=(0.1, 100), n_points=100):
     """Compute the structure factor.
 
@@ -33,7 +34,9 @@ def structure_factor(trj, Q_range=(0.1, 100), n_points=100):
     """
     rho = np.mean(trj.n_atoms / trj.unitcell_volumes)
     L = np.min(trj.unitcell_lengths)
-    elements = set([a.element for a in trj.topology.atoms])
+
+    top = trj.topology
+    elements = set([a.element for a in top.atoms])
 
     compositions = dict()
     form_factors = dict()
@@ -44,19 +47,19 @@ def structure_factor(trj, Q_range=(0.1, 100), n_points=100):
                     num=n_points)
     S = np.zeros(shape=(len(Q)))
 
-    for element in elements:
-        compositions[element.symbol] = len(trj.topology.select('element {}'.format(element.symbol)))/trj.n_atoms
-        form_factors[element.symbol] = element.atomic_number
+    for elem in elements:
+        compositions[elem.symbol] = len(top.select('elem {}'.format(elem.symbol)))/trj.n_atoms
+        form_factors[elem.symbol] = elem.atomic_number
 
-    for i,q in enumerate(Q):
+    for i, q in enumerate(Q):
         num = 0
         denom = 0
-        for element in elements:
-            denom += (compositions[element.symbol] * form_factors[element.symbol]) **2
+        for elem in elements:
+            denom += (compositions[elem.symbol] * form_factors[elem.symbol]) ** 2
 
-        for (element1, element2) in it.combinations_with_replacement(elements, 2):
-            e1 = element1.symbol
-            e2 = element2.symbol
+        for (elem1, elem2) in it.combinations_with_replacement(elements, 2):
+            e1 = elem1.symbol
+            e2 = elem2.symbol
 
             f_a = form_factors[e1]
             f_b = form_factors[e2]
@@ -68,9 +71,10 @@ def structure_factor(trj, Q_range=(0.1, 100), n_points=100):
             try:
                 g_r = rdfs['{0}{1}'.format(e1, e2)]
             except KeyError:
+                pairs = top.select_pairs(selection1='element {}'.format(e1),
+                                         selection2='element {}'.format(e2)),
                 r, g_r = md.compute_rdf(trj,
-                                       pairs=trj[0].topology.select_pairs(selection1='element {}'.format(e1),
-                                                                          selection2='element {}'.format(e2)),
+                                       pairs=pairs,
                                        r_range=(0, L / 2),
                                        bin_width=0.001)
                 rdfs['{0}{1}'.format(e1, e2)] = g_r
