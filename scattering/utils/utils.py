@@ -13,8 +13,8 @@ def rdf_by_frame(trj, **kwargs):
     g_r = None
     for frame in trj:
         r, g_r_frame = md.compute_rdf(frame, **kwargs) 
-        if g_r_all is None:
-            g_r_all = np.zeros_like(g_r)
+        if g_r is None:
+            g_r = np.zeros_like(g_r_frame)
         g_r += g_r_frame
     g_r /= len(trj)
     return r, g_r
