@@ -72,7 +72,7 @@ def structure_factor(trj, Q_range=(0.1, 100), n_points=100):
                 g_r = rdfs['{0}{1}'.format(e1, e2)]
             except KeyError:
                 pairs = top.select_pairs(selection1='element {}'.format(e1),
-                                         selection2='element {}'.format(e2)),
+                                         selection2='element {}'.format(e2))
                 r, g_r = md.compute_rdf(trj,
                                        pairs=pairs,
                                        r_range=(0, L / 2),
