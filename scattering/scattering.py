@@ -4,11 +4,12 @@ import mdtraj as md
 import numpy as np
 from scipy.integrate import simps
 
+from scattering.utils import rdf_by_frame
 
 __all__ = ['structure_factor']
 
 
-def structure_factor(trj, Q_range=(0.1, 100), n_points=100):
+def structure_factor(trj, Q_range=(0.1, 100), n_points=100, framewise_rdf=False):
     """Compute the structure factor.
 
     The consdered trajectory must include valid elements.
@@ -21,8 +22,13 @@ def structure_factor(trj, Q_range=(0.1, 100), n_points=100):
     ----------
     trj : mdtraj.Trajectory
         A trajectory for which the structure factor is to be computed.
-    Q : list or np.ndarray
-        Values of the scattering vector, in `1/nm`, to be consdered.
+    Q_range : list or np.ndarray, default=(0.1, 100)
+        Minimum and maximum Values of the scattering vector, in `1/nm`, to be
+        consdered.
+    n_points : int, default=100
+    framewise_rdf : boolean, default=False
+        If True, computes the rdf frame-by-frame. This can be useful for
+        managing memory in large systems.
 
     Returns
     -------
@@ -73,10 +79,16 @@ def structure_factor(trj, Q_range=(0.1, 100), n_points=100):
             except KeyError:
                 pairs = top.select_pairs(selection1='element {}'.format(e1),
                                          selection2='element {}'.format(e2))
-                r, g_r = md.compute_rdf(trj,
-                                       pairs=pairs,
-                                       r_range=(0, L / 2),
-                                       bin_width=0.001)
+                if framewise_rdf:
+                    r, g_r = rdf_by_frame(trj,
+                                         pairs=pairs,
+                                         r_range=(0, L / 2),
+                                         bin_width=0.001)
+                else:
+                    r, g_r = md.compute_rdf(trj,
+                                            pairs=pairs,
+                                            r_range=(0, L / 2),
+                                            bin_width=0.001)
                 rdfs['{0}{1}'.format(e1, e2)] = g_r
             integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
             num += pre_factor * integral + int(e1 == e2)
