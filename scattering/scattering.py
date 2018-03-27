@@ -48,7 +48,7 @@ def structure_factor(trj, Q_range=(0.1, 100), n_points=100):
     S = np.zeros(shape=(len(Q)))
 
     for elem in elements:
-        compositions[elem.symbol] = len(top.select('elem {}'.format(elem.symbol)))/trj.n_atoms
+        compositions[elem.symbol] = len(top.select('element {}'.format(elem.symbol)))/trj.n_atoms
         form_factors[elem.symbol] = elem.atomic_number
 
     for i, q in enumerate(Q):
