@@ -9,7 +9,7 @@ from scattering.utils import rdf_by_frame
 __all__ = ['structure_factor']
 
 
-def structure_factor(trj, Q_range=(0.1, 100), n_points=100, framewise_rdf=False):
+def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False):
     """Compute the structure factor.
 
     The consdered trajectory must include valid elements.
@@ -22,10 +22,10 @@ def structure_factor(trj, Q_range=(0.1, 100), n_points=100, framewise_rdf=False)
     ----------
     trj : mdtraj.Trajectory
         A trajectory for which the structure factor is to be computed.
-    Q_range : list or np.ndarray, default=(0.1, 100)
+    Q_range : list or np.ndarray, default=(0.5, 50)
         Minimum and maximum Values of the scattering vector, in `1/nm`, to be
         consdered.
-    n_points : int, default=100
+    n_points : int, default=1000
     framewise_rdf : boolean, default=False
         If True, computes the rdf frame-by-frame. This can be useful for
         managing memory in large systems.
