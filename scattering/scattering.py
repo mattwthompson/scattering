@@ -94,3 +94,35 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False)
             num += pre_factor * integral + int(e1 == e2)
         S[i] = num/denom
     return Q, S
+
+def compute_dynamic_rdf(trj):
+    """Compute r_ij(t), the distance between atom j at time t and atom i and
+    time 0. Note that this alone is likely useless, but is an intermediate
+    variable in the construction of a dynamic structure factor. 
+    See 10.1103/PhysRevE.59.623.
+
+    Parameters
+    ----------
+    trj : mdtraj.Trajectory
+        A trajectory for which the structure factor is to be computed
+
+    Returns
+    -------
+    r_ij : np.ndarray, shape=(trj.n_atoms, trj.n_atoms, trj.n_frames)
+        A three-dimensional array of interatomic distances
+    """
+
+    n_atoms = trj.n_atoms
+    n_frames = trj.n_frames
+
+    r_ij = np.ndarray(shape=(trj.n_atoms, trj.n_atoms, trj.n_frames))
+
+    for n_frame, frame in enumerate(trj):
+        for atom_i in range(trj.n_atoms):
+            for atom_j in range(trj.n_atoms):
+                r_ij[atom_i, atom_j, n_frame] = compute_distance(trj.xyz[n_frame, atom_j], trj.xyz[0, atom_i])
+
+    return r_ij
+
+def compute_distance(point1, point2):
+    return np.sqrt(np.sum((point1 -point2) ** 2))
