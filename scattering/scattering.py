@@ -119,13 +119,12 @@ def dynamic_structure_factor(trj, Q=10):
     """
     s_t = np.zeros(shape=(trj.n_frames,))
     t = trj.time
-    print(t)
+
     for n_frame, frame in enumerate(trj):
         box = ensure_type(frame.unitcell_vectors, dtype=np.float32, ndim=3, name='unitcell_vectors', shape=(1, 3, 3),
                          warn_on_cast=False)
         for atom_i in range(trj.n_atoms):
             for atom_j in range(trj.n_atoms):
-                print(n_frame, atom_i, atom_j)
                 r_ij = compute_distance_pbc(trj.xyz[n_frame, atom_j], trj.xyz[0, atom_i],  box.transpose(0, 2, 1))
                 if r_ij > 0:
                     s_t[n_frame] += np.sin(Q * r_ij) / (Q * r_ij)
