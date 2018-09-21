@@ -3,6 +3,8 @@ import itertools as it
 import mdtraj as md
 import numpy as np
 from scipy.integrate import simps
+from mdtraj.geometry.distance import _reduce_box_vectors
+from mdtraj.utils import ensure_type
 
 from scattering.utils import rdf_by_frame
 
@@ -124,5 +126,23 @@ def compute_dynamic_rdf(trj):
 
     return r_ij
 
+
 def compute_distance(point1, point2):
     return np.sqrt(np.sum((point1 -point2) ** 2))
+
+
+def compute_distance_pbc(point1, point2, box_vectors):
+    """Compute the distance between two points and obey the minimum image convention.
+
+    See https://github.com/mdtraj/mdtraj/blob/master/mdtraj/geometry/distance.py
+    """
+
+    bv1, bv2, bv3 = _reduce_box_vectors(box_vectors[0].T)
+    r12 = point2 - point1
+    r12 -= bv3*round(r12[2]/bv3[2])
+    r12 -= bv2*round(r12[1]/bv2[1])
+    r12 -= bv1*round(r12[0]/bv1[0])
+
+    dist = np.linalg.norm(r12)
+
+    return dist
