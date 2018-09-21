@@ -120,10 +120,9 @@ def compute_dynamic_rdf(trj):
     for n_frame, frame in enumerate(trj):
         for atom_i in range(trj.n_atoms):
             for atom_j in range(trj.n_atoms):
-                print(n_frame, atom_i, atom_j)
                 r_ij[atom_i, atom_j, n_frame] = compute_distance(trj.xyz[n_frame, atom_j], trj.xyz[0, atom_i])
 
     return r_ij
 
 def compute_distance(point1, point2):
-    np.sqrt(np.sum((point1 -point2) ** 2))
+    return np.sqrt(np.sum((point1 -point2) ** 2))
