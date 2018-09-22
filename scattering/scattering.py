@@ -126,3 +126,27 @@ def compute_dynamic_rdf(trj):
 
 def compute_distance(point1, point2):
     return np.sqrt(np.sum((point1 -point2) ** 2))
+
+
+def compute_van_hove(trj):
+    """Compute the van Hove function of a trajectory"""
+
+    R = np.mean(trj.unitcell_volumes)
+    #r_range = np.linspace(0, R / 2, num=10)
+    r_range = np.linspace(0, 1, num=10)
+    g_rt = np.zeros(shape=(len(r_range), len(trj.time)))
+
+    for n_frame, frame in enumerate(trj):
+        for n_r, r in enumerate(r_range):
+            print(n_frame, n_r)
+            sum = 0
+            for atom_i in range(trj.n_atoms):
+                for atom_j in range(trj.n_atoms):
+                    r_ij = compute_distance(frame.xyz[0, atom_j], trj.xyz[0, atom_i])
+                    if r_ij < 0:
+                        print(r_ij)
+                    sum += r - r_ij
+            g_rt[n_r, n_frame] = sum * r ** -2
+
+    g_rt /= 4 * np.pi * trj.n_atoms
+    return g_rt
