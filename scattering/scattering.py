@@ -150,6 +150,17 @@ def compute_van_hove(trj, chunk_length, selection1, selection2):
         Van Hove function at each time and position
     """
 
+    unique_elements = (
+        set([a.element for a in trj.atom_slice(trj.top.select(selection1)).top.atoms]),
+        set([a.element for a in trj.atom_slice(trj.top.select(selection2)).top.atoms]),
+    )
+
+    if any([len(val) > 1 for val in unique_elements]):
+        raise UserWarning(
+            'Multiple elements found in a selection(s). Results may not be '
+            'direcitly comprable to scattering experiments.'
+        )
+
     dt = np.unique(np.round(np.diff(trj.time), 3))
     if len(dt) > 1:
         raise ValueError('inconsistent dt')
