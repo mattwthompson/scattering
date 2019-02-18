@@ -164,6 +164,7 @@ def compute_van_hove(trj, chunk_length, selection1, selection2):
             'direcitly comprable to scattering experiments.'
         )
 
+    # Don't need to store it, but this serves to check that dt is constant
     dt = get_dt(trj)
 
     n_chunks = int(trj.n_frames / chunk_length)
@@ -172,19 +173,6 @@ def compute_van_hove(trj, chunk_length, selection1, selection2):
         for j in range(chunk_length):
             times.append([j+chunk_length*i, i*chunk_length])
 
-    pairs = trj.top.select_pairs(selection1=selection1, selection2=selection2)
-
-    r, g_r_t = md.compute_rdf_t(trj, pairs, times, r_range=(0, 0.8), periodic=True, opt=True)
-
-    return r, g_r_t
-
-def big_vhf_wrapper(trj, chunk_length, selection1, selection2):
-    n_chunks = int(trj.n_frames / chunk_length)
-
-    times = list()
-    for i in range(n_chunks):
-        for j in range(chunk_length):
-            times.append([j+chunk_length*i, i*chunk_length])
     pairs = trj.top.select_pairs(selection1=selection1, selection2=selection2)
 
     r, g_r_t = md.compute_rdf_t(trj, pairs, times, r_range=(0, 0.8), periodic=True, opt=True)
