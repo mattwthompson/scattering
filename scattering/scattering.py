@@ -4,9 +4,9 @@ import mdtraj as md
 import numpy as np
 from scipy.integrate import simps
 
-from scattering.utils import rdf_by_frame
+from scattering.utils.utils import rdf_by_frame
 
-__all__ = ['structure_factor']
+__all__ = ['structure_factor', 'big_vhf_wrapper']
 
 
 def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False):
@@ -173,6 +173,25 @@ def compute_van_hove(trj, chunk_length, selection1, selection2):
         for j in range(chunk_length):
             times.append([j+chunk_length*i, i*chunk_length])
 
+    pairs = trj.top.select_pairs(selection1=selection1, selection2=selection2)
+
+    r, g_r_t = md.compute_rdf_t(trj, pairs, times, r_range=(0, 0.8), periodic=True, opt=True)
+
+    return r, g_r_t
+
+def big_vhf_wrapper(trj, chunk_length, selection1, selection2):
+    n_chunks = int(trj.n_frames / chunk_length)
+
+    dt = np.unique(np.round(np.diff(trj.time), 3))
+    if len(dt) > 1:
+        raise ValueError('inconsistent dt')
+    else:
+        dt = dt[0]
+
+    times = list()
+    for i in range(n_chunks):
+        for j in range(chunk_length):
+            times.append([j+chunk_length*i, i*chunk_length])
     pairs = trj.top.select_pairs(selection1=selection1, selection2=selection2)
 
     r, g_r_t = md.compute_rdf_t(trj, pairs, times, r_range=(0, 0.8), periodic=True, opt=True)
