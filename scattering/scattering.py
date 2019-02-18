@@ -5,8 +5,11 @@ import numpy as np
 from scipy.integrate import simps
 
 from scattering.utils.utils import rdf_by_frame
+from scattering.utils.utils import get_dt
+
 
 __all__ = ['structure_factor', 'big_vhf_wrapper']
+
 
 
 def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False):
@@ -182,11 +185,7 @@ def compute_van_hove(trj, chunk_length, selection1, selection2):
 def big_vhf_wrapper(trj, chunk_length, selection1, selection2):
     n_chunks = int(trj.n_frames / chunk_length)
 
-    dt = np.unique(np.round(np.diff(trj.time), 3))
-    if len(dt) > 1:
-        raise ValueError('inconsistent dt')
-    else:
-        dt = dt[0]
+    dt = get_dt(trj)
 
     times = list()
     for i in range(n_chunks):
