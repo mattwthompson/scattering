@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from scattering.scattering import compute_van_hove
 from scattering.utils.io import get_fn
 from scattering.utils.utils import get_dt
+from scattering.utils.features import find_local_maxima
 
 trj = md.load(get_fn('10fs.xtc'),
               top=get_fn('10fs.gro'),
@@ -23,6 +24,10 @@ fig, ax = plt.subplots()
 
 for j in range(5):
     t = round(j * dt, 3)
+    r_max, g_r_max = find_local_maxima(r, np.mean(g_r_t[j::chunk_length], axis=0), r_guess=0.3)
+    plt.plot(r_max, g_r_max, 'k.')
+    r_max, g_r_max = find_local_maxima(r, np.mean(g_r_t[j::chunk_length], axis=0), r_guess=0.45)
+    plt.plot(r_max, g_r_max, 'k.')
     plt.plot(r, np.mean(g_r_t[j::chunk_length], axis=0), label='{} ps'.format(t))
 
 ax.set_xlim((0, 0.8))
