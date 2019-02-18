@@ -11,6 +11,10 @@ trj = md.load(get_fn('10fs.xtc'),
               stride=10
               )[:10000]
 
+chunk_length = 5
+selection1 = 'name O'
+selection2 = 'name O'
+
 r, g_r_t = big_vhf_wrapper(trj, 5, 'name O', 'name O')
 
 dt = get_dt(trj)
@@ -19,7 +23,7 @@ fig, ax = plt.subplots()
 
 for j in range(5):
     t = round(j * dt, 3)
-    plt.plot(r, np.mean(g_r_t[j::10], axis=0), label='{} ps'.format(t))
+    plt.plot(r, np.mean(g_r_t[j::chunk_length], axis=0), label='{} ps'.format(t))
 
 ax.set_xlim((0, 0.8))
 ax.set_ylim((0, 3.0))
