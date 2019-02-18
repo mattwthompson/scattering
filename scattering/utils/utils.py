@@ -19,7 +19,7 @@ def rdf_by_frame(trj, **kwargs):
     g_r /= len(trj)
     return r, g_r
 
-def get_dt(trj)
+def get_dt(trj):
     """Get the timestep between frames in a MDTraj trajectory."""
     dt = np.unique(np.round(np.diff(trj.time), 3))
     if len(dt) > 1:
