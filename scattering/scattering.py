@@ -185,8 +185,6 @@ def compute_van_hove(trj, chunk_length, selection1, selection2):
 def big_vhf_wrapper(trj, chunk_length, selection1, selection2):
     n_chunks = int(trj.n_frames / chunk_length)
 
-    dt = get_dt(trj)
-
     times = list()
     for i in range(n_chunks):
         for j in range(chunk_length):

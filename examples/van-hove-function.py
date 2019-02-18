@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from scattering.scattering import big_vhf_wrapper
 from scattering.utils.io import get_fn
-
+from scattering.utils.utils import get_dt
 
 trj = md.load(get_fn('10fs.xtc'),
               top=get_fn('10fs.gro'),
@@ -13,7 +13,7 @@ trj = md.load(get_fn('10fs.xtc'),
 
 r, g_r_t = big_vhf_wrapper(trj, 5, 'name O', 'name O')
 
-dt = np.unique(np.round(np.diff(trj.time), 3))[0]
+dt = get_dt(trj)
 
 fig, ax = plt.subplots()
 
