@@ -2,7 +2,7 @@ import numpy as np
 import mdtraj as md
 import matplotlib.pyplot as plt
 
-from scattering.scattering import big_vhf_wrapper
+from scattering.scattering import compute_van_hove
 from scattering.utils.io import get_fn
 from scattering.utils.utils import get_dt
 
@@ -15,7 +15,7 @@ chunk_length = 5
 selection1 = 'name O'
 selection2 = 'name O'
 
-r, g_r_t = big_vhf_wrapper(trj, 5, 'name O', 'name O')
+r, g_r_t = compute_van_hove(trj, 5, 'name O', 'name O')
 
 dt = get_dt(trj)
 

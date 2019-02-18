@@ -164,11 +164,7 @@ def compute_van_hove(trj, chunk_length, selection1, selection2):
             'direcitly comprable to scattering experiments.'
         )
 
-    dt = np.unique(np.round(np.diff(trj.time), 3))
-    if len(dt) > 1:
-        raise ValueError('inconsistent dt')
-    else:
-        dt = dt[0]
+    dt = get_dt(trj)
 
     n_chunks = int(trj.n_frames / chunk_length)
     times = list()
