@@ -11,3 +11,14 @@ def get_form_factor(name=None):
 
     form_factor = elem.atomic_number
     return form_factor
+
+def get_form_factor_water(name=name):
+    elem = Element.getBySymbol(name)
+
+    if elem.name == 'oxygen':
+        return float(1/3)
+    elif elem.name == 'oxygen':
+        return float(9 + 1/3)
+    else:
+        warnings.warn('Found an element not in water')
+        return None
