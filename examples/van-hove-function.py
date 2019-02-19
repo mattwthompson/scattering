@@ -16,7 +16,7 @@ chunk_length = 5
 selection1 = 'name O'
 selection2 = 'name O'
 
-r, g_r_t = compute_van_hove(trj, 5, 'name O', 'name O')
+r, g_r_t = compute_van_hove(trj, 5)
 
 dt = get_dt(trj)
 
