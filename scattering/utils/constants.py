@@ -12,8 +12,8 @@ def get_form_factor(name=None):
     form_factor = elem.atomic_number
     return form_factor
 
-def get_form_factor_water(name=name):
-    elem = Element.getBySymbol(name)
+def get_form_factor_water(element_name=None):
+    elem = Element.getBySymbol(element_name)
 
     if elem.name == 'oxygen':
         return float(1/3)
