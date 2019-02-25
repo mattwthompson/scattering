@@ -15,6 +15,22 @@ def find_local_minima(r, g_r, r_guess):
     nearest_minima, _ = find_nearest(r[all_minima], r_guess)
     return r[all_minima[nearest_minima]], g_r[all_minima[nearest_minima]]
 
+def maxima_in_range(r, g_r, r_min, r_max):
+    """Find the maxima in a range of r, g_r values"""
+    idx = np.where(np.logical_and(np.greater_equal(r, r_min), np.greater_equal(r_max, r)))
+    g_r_slice = g_r[idx]
+    g_r_max = g_r_slice[g_r_slice.argmax()]
+    idx_max, _ = find_nearest(g_r, g_r_max)
+    return r[idx_max], g_r[idx_max]
+
+def minima_in_range(r, g_r, r_min, r_max):
+    """Find the minima in a range of r, g_r values"""
+    idx = np.where(np.logical_and(np.greater_equal(r, r_min), np.greater_equal(r_max, r)))
+    g_r_slice = g_r[idx]
+    g_r_min = g_r_slice[g_r_slice.argmin()]
+    idx_min, _ = find_nearest(g_r, g_r_min)
+    return r[idx_min], g_r[idx_min]
+
 def find_nearest(arr, val):
     """
     Find index in an array nearest some value.
