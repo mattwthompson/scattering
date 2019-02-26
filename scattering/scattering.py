@@ -155,7 +155,7 @@ def compute_van_hove(trj, chunk_length):
     norm = 0
     g_r_t = np.zeros(shape=(trj.n_frames, 160))  # TODO: better handling of r
 
-    for elem1, elem2 in it.combinations_with_replacement(unique_elements, 2):
+    for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
         r, g_r_t_partial = compute_partial_van_hove(trj=trj,
                                                      chunk_length=chunk_length,
                                                      selection1='name {}'.format(elem1.symbol),
@@ -167,19 +167,20 @@ def compute_van_hove(trj, chunk_length):
         form_factor2 = get_form_factor(name=elem2.symbol)
 
         coeff = form_factor1 * concentration1 * form_factor2 * concentration2
-        g_r_t_partial *= coeff
+        g_r_t += g_r_t_partial * coeff
+
         norm += coeff
 
     # Reshape g_r_t to better represent the discretization in both r and t
-    g_r_t = np.empty(shape=(chunk_length, len(r)))
+    g_r_t_final = np.empty(shape=(chunk_length, len(r)))
     for i in range(chunk_length):
-        g_r_t[i, :] = np.mean(g_r_t_partial[i::chunk_length], axis=0)
+        g_r_t_final[i, :] = np.mean(g_r_t[i::chunk_length], axis=0)
 
-    g_r_t /= norm
+    g_r_t_final /= norm
 
     t = trj.time[:chunk_length]
 
-    return r, t, g_r_t
+    return r, t, g_r_t_final
 
 
 def compute_partial_van_hove(trj, chunk_length, selection1, selection2):
