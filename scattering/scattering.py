@@ -170,9 +170,16 @@ def compute_van_hove(trj, chunk_length):
         g_r_t_partial *= coeff
         norm += coeff
 
-    g_r_t = g_r_t_partial / norm
+    # Reshape g_r_t to better represent the discretization in both r and t
+    g_r_t = np.empty(shape=(chunk_length, len(r)))
+    for i in range(chunk_length):
+        g_r_t[i, :] = np.mean(g_r_t_partial[i::chunk_length], axis=0)
 
-    return r, g_r_t
+    g_r_t /= norm
+
+    t = trj.time[:chunk_length]
+
+    return r, t, g_r_t
 
 
 def compute_partial_van_hove(trj, chunk_length, selection1, selection2):
