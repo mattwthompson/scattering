@@ -16,7 +16,7 @@ def get_form_factor_water(element_name=None):
     if element_name is not None:
         elem = Element.getBySymbol(element_name)
     else:
-        riase ValueError('Need an element')
+        raise ValueError('Need an element')
 
     if elem.atomic_number not in [1, 8]:
         raise ValueError('')
