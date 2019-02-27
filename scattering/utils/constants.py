@@ -3,9 +3,13 @@ import warnings
 from mdtraj.core.element import Element
 
 
-def get_form_factor(name=None):
-    if name is not None:
-        elem = Element.getBySymbol(name)
+def get_form_factor(element_name=None, water=None):
+
+    if water:
+        return get_form_factor_water(element_name=element_name)
+
+    if element_name is not None:
+        elem = Element.getBySymbol(element_name)
 
     warnings.warn('Estimating atomic form factor as atomic number')
 

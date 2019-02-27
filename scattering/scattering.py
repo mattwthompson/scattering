@@ -132,7 +132,7 @@ def compute_distance(point1, point2):
     return np.sqrt(np.sum((point1 -point2) ** 2))
 
 
-def compute_van_hove(trj, chunk_length):
+def compute_van_hove(trj, chunk_length, water=False):
     """Compute the partial van Hove function of a trajectory
 
     Parameters
@@ -141,6 +141,8 @@ def compute_van_hove(trj, chunk_length):
         trajectory on which to compute the Van Hove function
     chunk_length : int
         length of time between restarting averaging
+    water : bool
+        use X-ray form factors for water that account for polarization
 
     Returns
     -------
@@ -164,8 +166,8 @@ def compute_van_hove(trj, chunk_length):
 
         concentration1 = len(trj.atom_slice(trj.top.select('name {}'.format(elem1.symbol)))) / trj.n_atoms
         concentration2 = len(trj.atom_slice(trj.top.select('name {}'.format(elem2.symbol)))) / trj.n_atoms
-        form_factor1 = get_form_factor(name=elem1.symbol)
-        form_factor2 = get_form_factor(name=elem2.symbol)
+        form_factor1 = get_form_factor(element_name=elem1.symbol, water=water)
+        form_factor2 = get_form_factor(element_name=elem2.symbol, water=water)
 
         coeff = form_factor1 * concentration1 * form_factor2 * concentration2
 
