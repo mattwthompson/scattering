@@ -153,7 +153,8 @@ def compute_van_hove(trj, chunk_length):
     unique_elements = list(set([a.element for a in trj.top.atoms]))
 
     norm = 0
-    g_r_t = np.zeros(shape=(trj.n_frames, 160))  # TODO: better handling of r
+
+    g_r_t = np.zeros(shape=(chunk_length, 160))  # TODO: better handling of r
 
     for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
         r, g_r_t_partial = compute_partial_van_hove(trj=trj,
@@ -167,6 +168,7 @@ def compute_van_hove(trj, chunk_length):
         form_factor2 = get_form_factor(name=elem2.symbol)
 
         coeff = form_factor1 * concentration1 * form_factor2 * concentration2
+
         g_r_t += g_r_t_partial * coeff
 
         norm += coeff
@@ -219,14 +221,20 @@ def compute_partial_van_hove(trj, chunk_length, selection1, selection2):
     # Don't need to store it, but this serves to check that dt is constant
     dt = get_dt(trj)
 
-    n_chunks = int(trj.n_frames / chunk_length)
-    times = list()
-    for i in range(n_chunks):
-        for j in range(chunk_length):
-            times.append([j+chunk_length*i, i*chunk_length])
-
     pairs = trj.top.select_pairs(selection1=selection1, selection2=selection2)
 
-    r, g_r_t = md.compute_rdf_t(trj, pairs, times, r_range=(0, 0.8), periodic=True, opt=True)
+    n_chunks = int(trj.n_frames / chunk_length)
+
+    g_r_t = None
+    for i in range(n_chunks):
+        print(i)
+        times = list()
+        for j in range(chunk_length):
+            times.append([chunk_length*i, chunk_length*i+j])
+        r, g_r_t_frame = md.compute_rdf_t(trj, pairs, times, r_range=(0, 0.8), periodic=True, opt=True)
+        if g_r_t is None:
+            g_r_t = np.zeros_like(g_r_t_frame)
+        g_r_t += g_r_t_frame
+    g_r_t /= n_chunks
 
     return r, g_r_t
