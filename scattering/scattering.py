@@ -227,7 +227,6 @@ def compute_partial_van_hove(trj, chunk_length, selection1, selection2):
 
     g_r_t = None
     for i in range(n_chunks):
-        print(i)
         times = list()
         for j in range(chunk_length):
             times.append([chunk_length*i, chunk_length*i+j])
