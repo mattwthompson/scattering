@@ -132,7 +132,9 @@ def compute_distance(point1, point2):
     return np.sqrt(np.sum((point1 -point2) ** 2))
 
 
-def compute_van_hove(trj, chunk_length, water=False):
+def compute_van_hove(trj, chunk_length, water=False,
+                     r_range=(0, 1.0), bin_width=0.005, n_bins=None,
+                     periodic=True, opt=True):
     """Compute the partial van Hove function of a trajectory
 
     Parameters
@@ -143,6 +145,13 @@ def compute_van_hove(trj, chunk_length, water=False):
         length of time between restarting averaging
     water : bool
         use X-ray form factors for water that account for polarization
+    r_range : array-like, shape=(2,), optional, default=(0.0, 1.0)
+        Minimum and maximum radii.
+    bin_width : float, optional, default=0.005
+        Width of the bins in nanometers.
+    n_bins : int, optional, default=None
+        The number of bins. If specified, this will override the `bin_width`
+         parameter.
 
     Returns
     -------
@@ -155,14 +164,19 @@ def compute_van_hove(trj, chunk_length, water=False):
     unique_elements = list(set([a.element for a in trj.top.atoms]))
 
     norm = 0
-
-    g_r_t = np.zeros(shape=(chunk_length, 160))  # TODO: better handling of r
+    g_r_t = None
 
     for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
         r, g_r_t_partial = compute_partial_van_hove(trj=trj,
-                                                     chunk_length=chunk_length,
-                                                     selection1='name {}'.format(elem1.symbol),
-                                                     selection2='name {}'.format(elem2.symbol))
+                                                    chunk_length=chunk_length,
+                                                    selection1='name {}'.format(elem1.symbol),
+                                                    selection2='name {}'.format(elem2.symbol),
+                                                    r_range=r_range,
+                                                    bin_width=bin_width,
+                                                    n_bins=n_bins,
+                                                    periodic=periodic,
+                                                    opt=opt)
+
 
         concentration1 = len(trj.atom_slice(trj.top.select('name {}'.format(elem1.symbol)))) / trj.n_atoms
         concentration2 = len(trj.atom_slice(trj.top.select('name {}'.format(elem2.symbol)))) / trj.n_atoms
@@ -171,6 +185,8 @@ def compute_van_hove(trj, chunk_length, water=False):
 
         coeff = form_factor1 * concentration1 * form_factor2 * concentration2
 
+        if g_r_t is None:
+            g_r_t = np.zeros_like(g_r_t_partial)
         g_r_t += g_r_t_partial * coeff
 
         norm += coeff
@@ -187,7 +203,9 @@ def compute_van_hove(trj, chunk_length, water=False):
     return r, t, g_r_t_final
 
 
-def compute_partial_van_hove(trj, chunk_length, selection1, selection2):
+def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=None,
+                             r_range=(0, 0.1), bin_width=0.005, n_bins=200,
+                             periodic=True, opt=True):
     """Compute the partial van Hove function of a trajectory
 
     Parameters
@@ -200,6 +218,13 @@ def compute_partial_van_hove(trj, chunk_length, selection1, selection2):
         selection to be considered, in the style of MDTraj atom selection
     selection2 : str
         selection to be considered, in the style of MDTraj atom selection
+    r_range : array-like, shape=(2,), optional, default=(0.0, 1.0)
+        Minimum and maximum radii.
+    bin_width : float, optional, default=0.005
+        Width of the bins in nanometers.
+    n_bins : int, optional, default=None
+        The number of bins. If specified, this will override the `bin_width`
+         parameter.
 
     Returns
     -------
@@ -232,7 +257,9 @@ def compute_partial_van_hove(trj, chunk_length, selection1, selection2):
         times = list()
         for j in range(chunk_length):
             times.append([chunk_length*i, chunk_length*i+j])
-        r, g_r_t_frame = md.compute_rdf_t(trj, pairs, times, r_range=(0, 0.8), periodic=True, opt=True)
+        r, g_r_t_frame = md.compute_rdf_t(trj, pairs=pairs, times=times,
+                                          r_range=r_range, bin_width=bin_width, n_bins=n_bins,
+                                          periodic=periodic, opt=opt)
         if g_r_t is None:
             g_r_t = np.zeros_like(g_r_t_frame)
         g_r_t += g_r_t_frame

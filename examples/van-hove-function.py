@@ -16,7 +16,8 @@ chunk_length = 200
 selection1 = 'name O'
 selection2 = 'name O'
 
-r, t, g_r_t = compute_van_hove(trj=trj, chunk_length=chunk_length, water=True)
+r, t, g_r_t = compute_van_hove(trj=trj, chunk_length=chunk_length, water=True,
+                               r_range=(0, 0.8), bin_width=0.001, periodic=True, opt=True)
 
 dt = get_dt(trj)
 
