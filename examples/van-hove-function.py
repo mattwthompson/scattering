@@ -62,6 +62,7 @@ ax.grid(False)
 ax.set_xlabel(r'Radial position, $r$, $nm$')
 ax.set_ylabel(r'Time, $t$, $ps$')
 
-plt.colorbar(heatmap)
+colorbar = plt.colorbar(heatmap)
+colorbar.set_label(r'$g(r, t) - 1$', rotation=270)
 
 fig.savefig('heatmap.pdf')
