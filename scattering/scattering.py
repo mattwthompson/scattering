@@ -169,8 +169,8 @@ def compute_van_hove(trj, chunk_length, water=False,
     for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
         r, g_r_t_partial = compute_partial_van_hove(trj=trj,
                                                     chunk_length=chunk_length,
-                                                    selection1='name {}'.format(elem1.symbol),
-                                                    selection2='name {}'.format(elem2.symbol),
+                                                    selection1='element {}'.format(elem1.symbol),
+                                                    selection2='element {}'.format(elem2.symbol),
                                                     r_range=r_range,
                                                     bin_width=bin_width,
                                                     n_bins=n_bins,
@@ -178,8 +178,8 @@ def compute_van_hove(trj, chunk_length, water=False,
                                                     opt=opt)
 
 
-        concentration1 = len(trj.atom_slice(trj.top.select('name {}'.format(elem1.symbol)))) / trj.n_atoms
-        concentration2 = len(trj.atom_slice(trj.top.select('name {}'.format(elem2.symbol)))) / trj.n_atoms
+        concentration1 = len(trj.atom_slice(trj.top.select('element {}'.format(elem1.symbol)))) / trj.n_atoms
+        concentration2 = len(trj.atom_slice(trj.top.select('element {}'.format(elem2.symbol)))) / trj.n_atoms
         form_factor1 = get_form_factor(element_name=elem1.symbol, water=water)
         form_factor2 = get_form_factor(element_name=elem2.symbol, water=water)
 
