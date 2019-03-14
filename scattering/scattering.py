@@ -178,8 +178,8 @@ def compute_van_hove(trj, chunk_length, water=False,
                                                     opt=opt)
 
 
-        concentration1 = len(trj.atom_slice(trj.top.select('element {}'.format(elem1.symbol)))) / trj.n_atoms
-        concentration2 = len(trj.atom_slice(trj.top.select('element {}'.format(elem2.symbol)))) / trj.n_atoms
+        concentration1 = trj.atom_slice(trj.top.select('element {}'.format(elem1.symbol))).n_atoms / trj.n_atoms
+        concentration2 = trj.atom_slice(trj.top.select('element {}'.format(elem2.symbol))).n_atoms / trj.n_atoms
         form_factor1 = get_form_factor(element_name=elem1.symbol, water=water)
         form_factor2 = get_form_factor(element_name=elem2.symbol, water=water)
 
