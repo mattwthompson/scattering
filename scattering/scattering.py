@@ -134,7 +134,7 @@ def compute_distance(point1, point2):
 
 def compute_van_hove(trj, chunk_length, water=False,
                      r_range=(0, 1.0), bin_width=0.005, n_bins=None,
-                     periodic=True, opt=True):
+                     self_correlation=True, periodic=True, opt=True):
     """Compute the partial van Hove function of a trajectory
 
     Parameters
@@ -152,6 +152,8 @@ def compute_van_hove(trj, chunk_length, water=False,
     n_bins : int, optional, default=None
         The number of bins. If specified, this will override the `bin_width`
          parameter.
+    self_correlation : bool, default=True
+        Whether or not to include the self-self correlations
 
     Returns
     -------
@@ -174,6 +176,7 @@ def compute_van_hove(trj, chunk_length, water=False,
                                                     r_range=r_range,
                                                     bin_width=bin_width,
                                                     n_bins=n_bins,
+                                                    self_correlation=self_correlation,
                                                     periodic=periodic,
                                                     opt=opt)
 
@@ -205,7 +208,7 @@ def compute_van_hove(trj, chunk_length, water=False,
 
 def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=None,
                              r_range=(0, 0.1), bin_width=0.005, n_bins=200,
-                             periodic=True, opt=True):
+                             self_correlation=True, periodic=True, opt=True):
     """Compute the partial van Hove function of a trajectory
 
     Parameters
@@ -225,6 +228,8 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     n_bins : int, optional, default=None
         The number of bins. If specified, this will override the `bin_width`
          parameter.
+    self_correlation : bool, default=True
+        Whether or not to include the self-self correlations
 
     Returns
     -------
@@ -259,7 +264,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
             times.append([chunk_length*i, chunk_length*i+j])
         r, g_r_t_frame = md.compute_rdf_t(trj, pairs=pairs, times=times,
                                           r_range=r_range, bin_width=bin_width, n_bins=n_bins,
-                                          periodic=periodic, opt=opt)
+                                          self_correlation=self_correlation, periodic=periodic, opt=opt)
         if g_r_t is None:
             g_r_t = np.zeros_like(g_r_t_frame)
         g_r_t += g_r_t_frame
