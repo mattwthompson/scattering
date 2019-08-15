@@ -14,7 +14,7 @@ def get_form_factor(element_name=None, water=None):
     warnings.warn('Estimating atomic form factor as atomic number')
 
     form_factor = elem.atomic_number
-    return form_factor
+    return form_factor if form_factor > 0 else 1
 
 def get_form_factor_water(element_name=None):
     if element_name is not None:
