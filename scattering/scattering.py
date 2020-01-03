@@ -207,7 +207,7 @@ def compute_van_hove(trj, chunk_length, water=False,
 
 
 def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=None,
-                             r_range=(0, 0.1), bin_width=0.005, n_bins=200,
+                             r_range=(0, 1.0), bin_width=0.005, n_bins=200,
                              self_correlation=True, periodic=True, opt=True):
     """Compute the partial van Hove function of a trajectory
 
