@@ -4,8 +4,9 @@ import mdtraj as md
 import numpy as np
 import matplotlib.pyplot as plt
 from mdtraj.geometry.distance import compute_distances, compute_distances_t
+from scattering.utils.io import get_fn
 
-trj = md.load('test/files/10fs_unwrapped.xtc', top='test/files/10fs.gro')[:1000]
+trj = md.load(get_fn('10fs_unwrapped.xtc'), top=get_fn('10fs.gro'))[:1000]
 
 pairs = trj.top.select_pairs('name O', 'name O')
 period_length = 20
