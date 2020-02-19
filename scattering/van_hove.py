@@ -74,9 +74,8 @@ def compute_van_hove(trj, chunk_length, water=False,
         coeff = form_factor1 * concentration1 * form_factor2 * concentration2
 
         if g_r_t is None:
-            print('Found a None g_r_t_partial')
-            g_r_t = np.zeros_like(val['g'])
-        g_r_t += val['g'] * coeff
+            g_r_t = np.zeros_like(val)
+        g_r_t += val * coeff
 
         norm += coeff
 
@@ -161,11 +160,11 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
             period_length=chunk_length,
             self_correlation=self_correlation,
             periodic=periodic,
-            opt=opt
+            opt=opt,
         )
+
         if g_r_t is None:
             g_r_t = np.zeros_like(g_r_t_frame)
         g_r_t += g_r_t_frame
-    #g_r_t /= n_chunks
 
     return r, g_r_t
