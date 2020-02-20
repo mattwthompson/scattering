@@ -19,7 +19,7 @@ def get_fn(filename):
     fn : str
         Full path to filename
     """
-    fn = resource_filename('scattering', os.path.join('test', 'files', filename))
+    fn = resource_filename('scattering', os.path.join('tests', 'files', filename))
     if not os.path.exists(fn):
         raise IOError('Sorry! {} does not exists.'.format(fn))
     return fn
