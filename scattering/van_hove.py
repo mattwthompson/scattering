@@ -40,7 +40,6 @@ def compute_van_hove(trj, chunk_length, water=False,
         Van Hove function at each time and position
     """
 
-    n_physical_atoms = len([a for a in trj.top.atoms if a.element.mass > 0])
     unique_elements = list(set([a.element for a in trj.top.atoms if a.element.mass > 0]))
 
     data = []
@@ -76,29 +75,12 @@ def compute_van_hove(trj, chunk_length, water=False,
     if partial:
         return partial_dict
 
-    norm = 0
-    g_r_t = None
-
-    for key, val in partial_dict.items():
-        elem1, elem2 = key
-        concentration1 = trj.atom_slice(trj.top.select(elem1)).n_atoms / n_physical_atoms
-        concentration2 = trj.atom_slice(trj.top.select(elem2)).n_atoms / n_physical_atoms
-        form_factor1 = get_form_factor(element_name=elem1.split()[1], water=water)
-        form_factor2 = get_form_factor(element_name=elem2.split()[1], water=water)
-
-        coeff = form_factor1 * concentration1 * form_factor2 * concentration2
-        if g_r_t is None:
-            g_r_t = np.zeros_like(val)
-        g_r_t += val * coeff
-
-        norm += coeff
+    g_r_t = _combine_partial(trj, partial_dict, water)
 
     # Reshape g_r_t to better represent the discretization in both r and t
     g_r_t_final = np.empty(shape=(chunk_length, len(r)))
     for i in range(chunk_length):
         g_r_t_final[i, :] = np.mean(g_r_t[i::chunk_length], axis=0)
-
-    g_r_t_final /= norm
 
     t = trj.time[:chunk_length]
 
@@ -110,6 +92,29 @@ def worker(return_dict, data):
     r, g_r_t_partial = compute_partial_van_hove(*data)
     return_dict[key] = g_r_t_partial
     return_dict['r'] = r
+
+
+def _combine_partial(trj, partial_dict, water):
+    n_physical_atoms = len([a for a in trj.top.atoms if a.element.mass > 0])
+
+    norm = 0
+    g_r_t = None
+
+    for key, val in partial_dict.items():
+        elem1, elem2 = key
+        concentration1 = trj.atom_slice(trj.top.select(elem1)).n_atoms / n_physical_atoms
+        concentration2 = trj.atom_slice(trj.top.select(elem2)).n_atoms / n_physical_atoms
+        form_factor1 = get_form_factor(element_name=elem1.split()[1], water=water)
+        form_factor2 = get_form_factor(element_name=elem2.split()[1], water=water)
+    
+        coeff = form_factor1 * concentration1 * form_factor2 * concentration2
+        if g_r_t is None:
+            g_r_t = np.zeros_like(val)
+        g_r_t += val * coeff
+    
+        norm += coeff
+    
+    return g_r_t / norm
 
 
 def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=None,
