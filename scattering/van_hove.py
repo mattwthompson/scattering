@@ -10,7 +10,7 @@ from scattering.utils.constants import get_form_factor
 
 def compute_van_hove(trj, chunk_length, water=False,
                      r_range=(0, 1.0), bin_width=0.005, n_bins=None,
-                     self_correlation=True, periodic=True, opt=True, partial=True):
+                     self_correlation=True, periodic=True, opt=True, partial=False):
     """Compute the partial van Hove function of a trajectory
 
     Parameters
@@ -45,7 +45,7 @@ def compute_van_hove(trj, chunk_length, water=False,
     partial_dict = dict()
 
     for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
-        print('doing {0} and {0} ...'.format(elem1, elem2))
+        print('doing {0} and {1} ...'.format(elem1, elem2))
         r, g_r_t_partial = compute_partial_van_hove(trj=trj,
                                                     chunk_length=chunk_length,
                                                     selection1='element {}'.format(elem1.symbol),
