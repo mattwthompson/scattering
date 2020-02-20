@@ -146,7 +146,6 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     pbar = ProgressBar()
 
     for i in pbar(range(n_chunks)):
-        print(i)
         times = list()
         for j in range(chunk_length):
             times.append([chunk_length*i, chunk_length*i+j])
