@@ -171,7 +171,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
 
 def compute_2d_van_hove(trj, chunk_length, water=False,
                      r_range=(0, 1.0), bin_width=0.005, n_bins=None,
-                     self_correlation=True, periodic=True, opt=True, partial=False, coords=[True,True,False]):
+                     self_correlation=True, periodic=True, opt=True, partial=False, cutoff=None, coords=[True,True,False]):
     """Compute the partial van Hove function of a trajectory
 
     Parameters
@@ -217,6 +217,7 @@ def compute_2d_van_hove(trj, chunk_length, water=False,
                                                     self_correlation=self_correlation,
                                                     periodic=periodic,
                                                     opt=opt,
+                                                    cutoff=cutoff,
                                                     coords=coords)
         partial_dict[(elem1, elem2)] = g_r_t_partial
 
@@ -255,7 +256,8 @@ def compute_2d_van_hove(trj, chunk_length, water=False,
 
 def compute_2d_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=None,
                              r_range=(0, 1.0), bin_width=0.005, n_bins=200,
-                             self_correlation=True, periodic=True, opt=True, coords=[True,True,False]):
+                             self_correlation=True, periodic=True, opt=True, cutoff=None,
+                             coords=[True,True,False]):
     """Compute the partial van Hove function of a trajectory
 
     Parameters
@@ -321,6 +323,7 @@ def compute_2d_partial_van_hove(trj, chunk_length=10, selection1=None, selection
             self_correlation=self_correlation,
             periodic=periodic,
             opt=opt,
+            cutoff=cutoff,
             coords=coords
         )
 
