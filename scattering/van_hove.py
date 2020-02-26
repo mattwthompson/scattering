@@ -205,6 +205,13 @@ def compute_2d_van_hove(trj, chunk_length, water=False,
 
     partial_dict = dict()
 
+    if cutoff:
+        if len(cutoff) != 2:
+            raise ValueError('cutoff must be length 2')
+        first_frame = trj.xyz[0]
+        atom_slice = np.where((first_frame[:,2] < cutoff[1]) & (first_frame[:,2] > cutoff[0]))
+        trj = trj.atom_slice(atom_slice[0])
+
     for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
         print('doing {0} and {1} ...'.format(elem1, elem2))
         r, g_r_t_partial = compute_2d_partial_van_hove(trj=trj,
@@ -217,7 +224,7 @@ def compute_2d_van_hove(trj, chunk_length, water=False,
                                                     self_correlation=self_correlation,
                                                     periodic=periodic,
                                                     opt=opt,
-                                                    cutoff=cutoff,
+                                                    cutoff=None,
                                                     coords=coords)
         partial_dict[(elem1, elem2)] = g_r_t_partial
 
@@ -287,6 +294,13 @@ def compute_2d_partial_van_hove(trj, chunk_length=10, selection1=None, selection
     g_r_t : numpy.ndarray
         Van Hove function at each time and position
     """
+    if cutoff:
+        if len(cutoff) != 2:
+            raise ValueError('cutoff must be length 2')
+        first_frame = trj.xyz[0]
+        atom_slice = np.where((first_frame[:,2] < cutoff[1]) & (first_frame[:,2] > cutoff[0]))
+        trj = trj.atom_slice(atom_slice[0])
+
     unique_elements = (
         set([a.element for a in trj.atom_slice(trj.top.select(selection1)).top.atoms]),
         set([a.element for a in trj.atom_slice(trj.top.select(selection2)).top.atoms]),
@@ -323,7 +337,6 @@ def compute_2d_partial_van_hove(trj, chunk_length=10, selection1=None, selection
             self_correlation=self_correlation,
             periodic=periodic,
             opt=opt,
-            cutoff=cutoff,
             coords=coords
         )
 
