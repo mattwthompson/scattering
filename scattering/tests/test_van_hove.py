@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import mdtraj as md
+import pytest
 
 from scattering.van_hove import compute_van_hove, compute_2d_van_hove
 from scattering.utils.io import get_fn
@@ -52,3 +53,13 @@ def test_2d_van_hove():
     ax.set_ylim((0, 3))
     ax.legend()
     fig.savefig('2d_vhf.pdf')
+
+def test_2d_cutoff(cutoff=2):
+    trj = md.load(
+        get_fn('spce.xtc'),
+        top=get_fn('spce.gro')
+    )[:100]
+
+    chunk_length = 2
+    with pytest.raises(ValueError):
+        r, t, g_r_t = compute_2d_van_hove(trj, chunk_length=chunk_length, cutoff=cutoff)
