@@ -191,6 +191,11 @@ def compute_2d_van_hove(trj, chunk_length, water=False,
          parameter.
     self_correlation : bool, default=True
         Whether or not to include the self-self correlations
+    cutoff : array-like, shape=(2,), optional, default=None
+        Minimum and maximum coordinates of trajectory in the coordinate not included in RDF
+    coords : [bool, bool, bool], optional, default=[True, True, False]
+        Dimensions to include in calculation of 2D RDF
+        
 
     Returns
     -------
@@ -286,6 +291,10 @@ def compute_2d_partial_van_hove(trj, chunk_length=10, selection1=None, selection
          parameter.
     self_correlation : bool, default=True
         Whether or not to include the self-self correlations
+    cutoff : array-like, shape=(2,), optional, default=None
+        Minimum and maximum coordinates of trajectory in the coordinate not included in RDF
+    coords : [bool, bool, bool], optional, default=[True, True, False]
+        Dimensions to include in calculation of 2D RDF
 
     Returns
     -------
