@@ -54,7 +54,8 @@ def test_2d_van_hove():
     ax.legend()
     fig.savefig('2d_vhf.pdf')
 
-def test_2d_cutoff(cutoff=2):
+@pytest.mark.parametrize('cutoff', [2, [0, 2, 4]])
+def test_2d_cutoff(cutoff):
     trj = md.load(
         get_fn('spce.xtc'),
         top=get_fn('spce.gro')
@@ -64,7 +65,8 @@ def test_2d_cutoff(cutoff=2):
     with pytest.raises(ValueError):
         r, t, g_r_t = compute_2d_van_hove(trj, chunk_length=chunk_length, cutoff=cutoff)
 
-def test_2d_coords(coords=[True, True, True]):
+@pytest.mark.parametrize('coords', [[True, True, True], [False, False, False]])
+def test_2d_coords(coords):
     trj = md.load(
         get_fn('spce.xtc'),
         top=get_fn('spce.gro')
