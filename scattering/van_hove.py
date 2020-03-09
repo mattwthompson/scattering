@@ -215,9 +215,7 @@ def compute_2d_van_hove(trj, chunk_length, water=False,
         trj = _slice_trj(trj, cutoff)
 
     # Check `coords` array 
-    true_coords = len([coord for coord in coords if coord==True])
-    if true_coords != 2:
-        raise ValueError('coords must have 2 coordinates specified as True')
+    _validate_coords(coords)
 
     for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
         print('doing {0} and {1} ...'.format(elem1, elem2))
@@ -310,9 +308,7 @@ def compute_2d_partial_van_hove(trj, chunk_length=10, selection1=None, selection
         trj = _slice_trj(trj, cutoff)
 
     # Check `coords` array 
-    true_coords = len([coord for coord in coords if coord==True])
-    if true_coords != 2:
-        raise ValueError('coords must have 2 coordinates specified as True')
+    _validate_coords(coords)
 
     unique_elements = (
         set([a.element for a in trj.atom_slice(trj.top.select(selection1)).top.atoms]),
@@ -369,3 +365,10 @@ def _slice_trj(trj, cutoff):
     trj = trj.atom_slice(atom_slice[0])
 
     return trj
+
+def _validate_coords(coords):
+    if isinstance(coords, (list, tuple, np.ndarray)) == False:
+        raise ValueError('coords must be an iterable')
+    true_coords = len([coord for coord in coords if coord==True])
+    if true_coords != 2:
+        raise ValueError('coords must have 2 coordinates specified as True')

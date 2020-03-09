@@ -63,3 +63,13 @@ def test_2d_cutoff(cutoff=2):
     chunk_length = 2
     with pytest.raises(ValueError):
         r, t, g_r_t = compute_2d_van_hove(trj, chunk_length=chunk_length, cutoff=cutoff)
+
+def test_2d_coords(coords=[True, True, True]):
+    trj = md.load(
+        get_fn('spce.xtc'),
+        top=get_fn('spce.gro')
+    )[:100]
+
+    chunk_length = 2
+    with pytest.raises(ValueError):
+        r, t, g_r_t = compute_2d_van_hove(trj, chunk_length=chunk_length, coords=coords)
