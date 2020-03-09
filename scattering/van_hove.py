@@ -194,7 +194,7 @@ def compute_2d_van_hove(trj, chunk_length, water=False,
     cutoff : array-like, shape=(2,), optional, default=None
         Minimum and maximum coordinates of trajectory in the coordinate not included in RDF
     coords : [bool, bool, bool], optional, default=[True, True, False]
-        Dimensions to include in calculation of 2D RDF
+        Dimensions to include in calculation of 2D RDF, 2 out of 3 indices must equal True
         
 
     Returns
@@ -210,12 +210,18 @@ def compute_2d_van_hove(trj, chunk_length, water=False,
 
     partial_dict = dict()
 
+    # Slice MDTraj trajectory based on `cutoff`
     if cutoff:
         if len(cutoff) != 2:
             raise ValueError('cutoff must be length 2')
         first_frame = trj.xyz[0]
         atom_slice = np.where((first_frame[:,2] < cutoff[1]) & (first_frame[:,2] > cutoff[0]))
         trj = trj.atom_slice(atom_slice[0])
+
+    # Check `coords` array 
+    true_coords = len([coord for coord in coords if coord==True])
+    if len(true_coords) != 2:
+        raise ValueError('coords must have 2 coordinates specified as True')
 
     for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
         print('doing {0} and {1} ...'.format(elem1, elem2))
@@ -303,12 +309,18 @@ def compute_2d_partial_van_hove(trj, chunk_length=10, selection1=None, selection
     g_r_t : numpy.ndarray
         Van Hove function at each time and position
     """
+    # Slice MDTraj trajectory based on `cutoff`
     if cutoff:
         if len(cutoff) != 2:
             raise ValueError('cutoff must be length 2')
         first_frame = trj.xyz[0]
         atom_slice = np.where((first_frame[:,2] < cutoff[1]) & (first_frame[:,2] > cutoff[0]))
         trj = trj.atom_slice(atom_slice[0])
+
+    # Check `coords` array 
+    true_coords = len([coord for coord in coords if coord==True])
+    if len(true_coords) != 2:
+        raise ValueError('coords must have 2 coordinates specified as True')
 
     unique_elements = (
         set([a.element for a in trj.atom_slice(trj.top.select(selection1)).top.atoms]),
