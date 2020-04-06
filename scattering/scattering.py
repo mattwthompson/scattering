@@ -66,7 +66,7 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False)
         num = 0
         denom = 0
         for elem in elements:
-            denom += (compositions[elem.symbol] * form_factors[elem.symbol]) ** 2
+            denom += compositions[elem.symbol] * (form_factors[elem.symbol]) ** 2
 
         for (elem1, elem2) in it.combinations_with_replacement(elements, 2):
             e1 = elem1.symbol
@@ -78,7 +78,7 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False)
             x_a = compositions[e1]
             x_b = compositions[e2]
 
-            pre_factor = x_a * x_b * f_a * f_b * 4 * np.pi * rho
+            pre_factor = np.sqrt(x_a * x_b) * 4 * np.pi * rho
             try:
                 g_r = rdfs['{0}{1}'.format(e1, e2)]
             except KeyError:
@@ -96,7 +96,8 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False)
                                             bin_width=0.001)
                 rdfs['{0}{1}'.format(e1, e2)] = g_r
             integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
-            num += pre_factor * integral + int(e1 == e2)
+            full_integral = (integral*pre_factor) + int(e1==e2)
+            num += (f_a*f_b) * (full_integral+1) * np.sqrt(x_a*x_b)
         S[i] = num/denom
     return Q, S
 
