@@ -43,9 +43,9 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False)
         The structure factor of the trajectory
 
     """
+    
     rho = np.mean(trj.n_atoms / trj.unitcell_volumes)
     L = np.min(trj.unitcell_lengths)
-
     top = trj.topology
     elements = set([a.element for a in top.atoms])
 
@@ -56,7 +56,9 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False)
     Q = np.logspace(np.log10(Q_range[0]),
                     np.log10(Q_range[1]),
                     num=n_points)
-    S = np.zeros(shape=(len(Q)))
+    S = np.zeros(shape=(len(Q))) # eqn 6 https://pubs.rsc.org/en/content/articlepdf/2016/cp/c5cp06199g
+    K = np.zeros(shape=(len(Q))) # eqn 2 https://pubs.rsc.org/en/content/articlepdf/2016/cp/c5cp06199g
+    
 
     for elem in elements:
         compositions[elem.symbol] = len(top.select('element {}'.format(elem.symbol)))/trj.n_atoms
@@ -98,7 +100,15 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False)
             integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
             num += pre_factor * integral + int(e1 == e2)
         S[i] = num/denom
-    return Q, S
+        K[i]=1+4 * np.pi * rho*simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
+        # is the g_r used in K[i] the right g_r or it needs to be averaged?
+    return Q, S,r,g_r,K
+    
+
+
+
+        
+
 
 def compute_dynamic_rdf(trj):
     """Compute r_ij(t), the distance between atom j at time t and atom i and
