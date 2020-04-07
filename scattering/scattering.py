@@ -14,7 +14,7 @@ from scattering.utils.constants import get_form_factor
 
 
 
-def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False, method='ak'):
+def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False, method='al'):
     """Compute the structure factor.
 
     The consdered trajectory must include valid elements.
@@ -34,7 +34,7 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
     framewise_rdf : boolean, default=False
         If True, computes the rdf frame-by-frame. This can be useful for
         managing memory in large systems.
-    method : string, optional, default='ak'
+    method : string, optional, default='al'
         Formalism for calculating the structure-factor, default is Ashcroft-langreth.
         Other option is the Faber-Ziman formalism.  See http://isaacs.sourceforge.net/manual/page26_mn.html for details.
 
@@ -69,6 +69,9 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
         num = 0
         denom = 0
 
+        for elem in elements:
+            denom += compositions[elem.symbol] * (form_factors[elem.symbol]) ** 2
+
         for (elem1, elem2) in it.combinations_with_replacement(elements, 2):
             e1 = elem1.symbol
             e2 = elem2.symbol
@@ -97,16 +100,14 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
                 rdfs['{0}{1}'.format(e1, e2)] = g_r
             integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
 
-            if method == 'ak':
+            if method == 'al':
                 pre_factor = np.sqrt(x_a * x_b) * 4 * np.pi * rho
                 partial_sq = (integral*pre_factor) + int(e1==e2)
-                for elem in elements:
-                    denom += compositions[elem.symbol] * (form_factors[elem.symbol]) ** 2
-                num += (f_a*f_b) * (full_integral+1) * np.sqrt(x_a*x_b)
+                num += (f_a*f_b) * (partial_sq+1) * np.sqrt(x_a*x_b)
             elif method == 'fz':
                 pre_factor = 4 * np.pi * rho
                 partial_sq = (integral*pre_factor) + 1
-                num += (f_a*f_b) * (full_integral+1) * (x_a*x_b)
+                num += (x_a*f_a*x_b*f_b) * (partial_sq-1)
                 denom = 1
         S[i] = num/denom
     return Q, S
