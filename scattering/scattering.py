@@ -103,7 +103,7 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
             if method == 'al':
                 pre_factor = np.sqrt(x_a * x_b) * 4 * np.pi * rho
                 partial_sq = (integral*pre_factor) + int(e1==e2)
-                num += (f_a*f_b) * (partial_sq+1) * np.sqrt(x_a*x_b)
+                num += (f_a*f_b) * (partial_sq) * np.sqrt(x_a*x_b)
             elif method == 'fz':
                 pre_factor = 4 * np.pi * rho
                 partial_sq = (integral*pre_factor) + 1
@@ -143,3 +143,47 @@ def compute_dynamic_rdf(trj):
 
 def compute_distance(point1, point2):
     return np.sqrt(np.sum((point1 -point2) ** 2))
+
+def compute_rdf_from_partial(trj, r_range=None):
+    compositions = dict()
+    form_factors = dict()
+    rdfs = dict()
+
+    L = np.min(trj.unitcell_lengths)
+    top = trj.topology
+    elements = set([a.element for a in top.atoms])
+
+    for elem in elements:
+        compositions[elem.symbol] = len(top.select('element {}'.format(elem.symbol)))/trj.n_atoms
+        form_factors[elem.symbol] = elem.atomic_number
+
+    for i, (elem1, elem2) in enumerate(it.combinations_with_replacement(elements, 2)):
+        e1 = elem1.symbol
+        e2 = elem2.symbol
+
+        x_a = compositions[e1]
+        x_b = compositions[e2]
+
+        f_a = form_factors[e1]
+        f_b = form_factors[e2]
+        
+        try:
+            g_r = rdfs['{0}{1}'.format(e1, e2)]
+        except KeyError:
+            pairs = top.select_pairs(selection1='element {}'.format(e1),
+                                     selection2='element {}'.format(e2))
+            if r_range == None:
+                r, g_r = md.compute_rdf(trj,
+                                        pairs=pairs,
+                                        r_range=(0, L / 2))
+            else:
+                r, g_r = md.compute_rdf(trj,
+                                        pairs=pairs,
+                                        r_range=r_range)
+            rdfs['{0}{1}'.format(e1, e2)] = g_r
+        if i == 0:
+            total = g_r * x_a * x_b #* f_a * f_b
+        else: 
+            total += g_r * x_a * x_b #* f_a * f_b
+
+    return r, total
