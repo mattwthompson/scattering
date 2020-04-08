@@ -153,11 +153,12 @@ def compute_rdf_from_partial(trj, r_range=None):
     top = trj.topology
     elements = set([a.element for a in top.atoms])
 
+    denom = 0
     for elem in elements:
         compositions[elem.symbol] = len(top.select('element {}'.format(elem.symbol)))/trj.n_atoms
         form_factors[elem.symbol] = elem.atomic_number
-
-    for i, (elem1, elem2) in enumerate(it.combinations_with_replacement(elements, 2)):
+        denom += compositions[elem.symbol] * form_factors[elem.symbol]
+    for i, (elem1, elem2) in enumerate(it.product(elements, repeat=2)):
         e1 = elem1.symbol
         e2 = elem2.symbol
 
@@ -182,8 +183,8 @@ def compute_rdf_from_partial(trj, r_range=None):
                                         r_range=r_range)
             rdfs['{0}{1}'.format(e1, e2)] = g_r
         if i == 0:
-            total = g_r * x_a * x_b #* f_a * f_b
+            total = g_r * (x_a*x_b*f_a*f_b) / denom**2
         else: 
-            total += g_r * x_a * x_b #* f_a * f_b
+            total += g_r * (x_a*x_b*f_a*f_b) / denom**2
 
     return r, total
