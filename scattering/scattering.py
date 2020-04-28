@@ -35,8 +35,8 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
         If True, computes the rdf frame-by-frame. This can be useful for
         managing memory in large systems.
     method : string, optional, default='fz'
-        Formalism for calculating the structure-factor, default is Ashcroft-langreth.
-        Other option is the Faber-Ziman formalism.  See http://isaacs.sourceforge.net/manual/page26_mn.html for details.
+        Formalism for calculating the structure-factor, default is Faber-Ziman.
+        Other option is the Faber-Ziman formalism.  See https://openscholarship.wustl.edu/etd/1358/ and http://isaacs.sourceforge.net/manual/page26_mn.html for details.
 
     Returns
     -------
