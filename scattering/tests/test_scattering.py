@@ -11,7 +11,7 @@ def test_structure_factor():
         top=get_fn('spce.gro')
     )[:100]
 
-    Q, S = structure_factor(temp_trj,
+    Q, S = structure_factor(trj,
                             Q_range=(0.5, 200),
                             framewise_rdf=False,
                             method='fz')
