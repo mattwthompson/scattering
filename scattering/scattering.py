@@ -36,7 +36,7 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
         managing memory in large systems.
     method : string, optional, default='fz'
         Formalism for calculating the structure-factor, default is Faber-Ziman.
-        Other option is the Faber-Ziman formalism.  See https://openscholarship.wustl.edu/etd/1358/ and http://isaacs.sourceforge.net/manual/page26_mn.html for details.
+        See https://openscholarship.wustl.edu/etd/1358/ and http://isaacs.sourceforge.net/manual/page26_mn.html for details.
 
     Returns
     -------
@@ -46,6 +46,11 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
         The structure factor of the trajectory
 
     """
+    if method not in ['fz', 'al']:
+        raise ValueError('Invalid `method` {} given.'
+                         'The methods currently supported are `fz` and `al`.'.format(
+                             method))
+
     rho = np.mean(trj.n_atoms / trj.unitcell_volumes)
     L = np.min(trj.unitcell_lengths)
 
