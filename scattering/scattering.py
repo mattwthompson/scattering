@@ -46,9 +46,9 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
         The structure factor of the trajectory
 
     """
-    if method not in ['fz', 'al']:
-        raise ValueError('Invalid `method` {} given.'
-                         'The methods currently supported are `fz` and `al`.'.format(
+    if method not in ['fz']:
+        raise ValueError('Invalid method `{}` is given.'
+                         '  The only method currently supported is `fz`.'.format(
                              method))
 
     rho = np.mean(trj.n_atoms / trj.unitcell_volumes)
@@ -105,11 +105,7 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
                 rdfs['{0}{1}'.format(e1, e2)] = g_r
             integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
 
-            if method == 'al':
-                pre_factor = np.sqrt(x_a * x_b) * 4 * np.pi * rho
-                partial_sq = (integral*pre_factor) + int(e1==e2)
-                num += (f_a*f_b) * (partial_sq+1) * np.sqrt(x_a*x_b)
-            elif method == 'fz':
+            if method == 'fz':
                 pre_factor = 4 * np.pi * rho
                 partial_sq = (integral*pre_factor) + 1
                 num += (x_a*f_a*x_b*f_b) * (partial_sq)

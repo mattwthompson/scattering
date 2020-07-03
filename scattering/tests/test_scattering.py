@@ -6,7 +6,7 @@ import pytest
 from scattering.scattering import structure_factor
 from scattering.utils.io import get_fn
 
-@pytest.mark.parametrize('method', ['fz', 'al'])
+@pytest.mark.parametrize('method', ['fz'])
 def test_structure_factor(method):
     trj = md.load(
         get_fn('spce.xtc'),
