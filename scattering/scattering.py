@@ -100,6 +100,91 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False)
         S[i] = num/denom
     return Q, S
 
+
+def structure_factor_pair(trj, pair, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False, method='fz'):
+    rho = np.mean(trj.n_atoms / trj.unitcell_volumes)
+    L = np.min(trj.unitcell_lengths)
+
+    top = trj.topology
+    
+    elements_i = set()
+    elements_j = set()
+    for a in top.atoms:
+        string = a.element.symbol
+        if string[-2:] == pair[0]:
+            elements_i.add((a.element))
+        if string[-2:] == pair[1]:  
+            elements_j.add((a.element))
+
+    compositions_i = dict()
+    compositions_j = dict()
+    form_factors_i = dict()
+    form_factors_j = dict()
+    rdfs = dict()
+
+
+    Q = np.logspace(np.log10(Q_range[0]),
+                    np.log10(Q_range[1]),
+                    num=n_points)
+    S = np.zeros(shape=(len(Q)))
+
+    for elem in elements_i:
+        compositions_i[elem.symbol] = len(top.select('element {}'.format(elem.symbol)))/trj.n_atoms
+        form_factors_i[elem.symbol] = elem.atomic_number
+    for elem in elements_j:
+        compositions_j[elem.symbol] = len(top.select('element {}'.format(elem.symbol)))/trj.n_atoms
+        form_factors_j[elem.symbol] = elem.atomic_number
+
+    for i, q in enumerate(Q):
+        num = 0
+        denom = 0
+
+        for elem in elements_i:
+            denom += compositions_i[elem.symbol] * form_factors_i[elem.symbol]
+
+        for (elem1, elem2) in it.product(elements_i,elements_j):
+            e1 = elem1.symbol
+            e2 = elem2.symbol
+
+            f_i = form_factors_i[e1]
+            f_j = form_factors_j[e2]
+
+            x_i = compositions_i[e1]
+            x_j = compositions_j[e2]
+
+
+
+            try:
+                g_r = rdfs['{0}{1}'.format(e1, e2)]
+            except KeyError:
+                pairs = top.select_pairs(selection1='element {}'.format(e1),
+                                         selection2='element {}'.format(e2))
+                if framewise_rdf:
+                    r, g_r = rdf_by_frame(trj,
+                                         pairs=pairs,
+                                         r_range=(0, L / 2),
+                                         bin_width=0.001)
+                else:
+                    r, g_r = md.compute_rdf(trj,
+                                            pairs=pairs,
+                                            r_range=(0, L / 2),
+                                            bin_width=0.001)
+                rdfs['{0}{1}'.format(e1, e2)] = g_r
+
+            integral = simps(r ** 2 * (g_r - g_r[-1]) * np.sin(q * r) / (q * r), r)
+
+            if method == 'al':
+                pre_factor = np.sqrt(x_i * x_j) * 4 * np.pi * rho
+                partial_sq = (integral*pre_factor) + int(e1==e2)
+                num += (f_i*f_j) * (partial_sq + 1) * np.sqrt(x_i*x_j)
+            elif method == 'fz':
+                pre_factor = 4 * np.pi * rho
+                partial_sq = (integral*pre_factor) + 1
+                num += (x_i*f_i*x_j*f_j) * (partial_sq)
+        S[i] = (num/(denom**2))
+    return Q, S
+
+
 def compute_dynamic_rdf(trj):
     """Compute r_ij(t), the distance between atom j at time t and atom i and
     time 0. Note that this alone is likely useless, but is an intermediate
