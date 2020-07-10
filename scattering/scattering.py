@@ -106,7 +106,7 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
                 num += (f_a*f_b) * (partial_sq+1) * np.sqrt(x_a*x_b)
             elif method == 'fz':
                 pre_factor = 4 * np.pi * rho
-                partial_sq = (integral*pre_factor) + 1
+                partial_sq = (integral*pre_factor)
                 num += (x_a*f_a*x_b*f_b) * (partial_sq)
         S[i] = (num/(denom**2))
     return Q, S
