@@ -35,7 +35,6 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False)
         If True, computes the rdf frame-by-frame. This can be useful for
         managing memory in large systems.
 
-        
     Returns
     -------
     Q : np.ndarray
@@ -66,11 +65,10 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False)
     for i, q in enumerate(Q):
         num = 0
         denom = 0
-
         for elem in elements:
-            denom += compositions[elem.symbol] * form_factors[elem.symbol]
+            denom += (compositions[elem.symbol] * form_factors[elem.symbol]) ** 2
 
-        for (elem1, elem2) in it.product(elements, repeat=2):
+        for (elem1, elem2) in it.combinations_with_replacement(elements, 2):
             e1 = elem1.symbol
             e2 = elem2.symbol
 
@@ -79,7 +77,8 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False)
 
             x_a = compositions[e1]
             x_b = compositions[e2]
-            
+
+            pre_factor = x_a * x_b * f_a * f_b * 4 * np.pi * rho
             try:
                 g_r = rdfs['{0}{1}'.format(e1, e2)]
             except KeyError:
@@ -97,12 +96,8 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False)
                                             bin_width=0.001)
                 rdfs['{0}{1}'.format(e1, e2)] = g_r
             integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
-            
-            pre_factor = 4 * np.pi * rho
-            partial_sq = (integral*pre_factor)
-            num += (x_a*f_a*x_b*f_b) * (partial_sq)
-            
-        S[i] = (num/(denom**2))
+            num += pre_factor * integral
+        S[i] = num/denom
     return Q, S
 
 
