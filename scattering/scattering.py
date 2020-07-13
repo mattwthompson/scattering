@@ -14,7 +14,7 @@ from scattering.utils.constants import get_form_factor
 
 
 
-def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False):
+def structure_factor(trj, pair = None, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False):
     """Compute the structure factor.
 
     The consdered trajectory must include valid elements.
@@ -26,10 +26,12 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False)
     Parameters
     ----------
     trj : mdtraj.Trajectory
-        A trajectory for which the structure factor is to be computed.
+        A trajectory for which the structure factor is to be computed.   
+    pair : array-like, shape=(2,), optional, default=('all', 'all')
+        pair can be like ('cation', 'anion'), ('anion', 'cation'), ('cation', 'cation'), ('anion', 'anion').     
     Q_range : list or np.ndarray, default=(0.5, 50)
         Minimum and maximum Values of the scattering vector, in `1/nm`, to be
-        consdered.
+        consdered. 
     n_points : int, default=1000
     framewise_rdf : boolean, default=False
         If True, computes the rdf frame-by-frame. This can be useful for
@@ -48,11 +50,16 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False)
 
     top = trj.topology
     elements = set([a.element for a in top.atoms])
-
+    
+    if pair != None:  
+        top_1 = trj.atom_slice(trj.topology.select('resname {}'.format(pair[0])))
+        top_2 = trj.atom_slice(trj.topology.select('resname {}'.format(pair[1])))
+        Number_scale = dict()
+        
     compositions = dict()
     form_factors = dict()
     rdfs = dict()
-
+    
     Q = np.logspace(np.log10(Q_range[0]),
                     np.log10(Q_range[1]),
                     num=n_points)
@@ -66,94 +73,11 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False)
         num = 0
         denom = 0
         for elem in elements:
-            denom += (compositions[elem.symbol] * form_factors[elem.symbol]) ** 2
-
-        for (elem1, elem2) in it.combinations_with_replacement(elements, 2):
-            e1 = elem1.symbol
-            e2 = elem2.symbol
-
-            f_a = form_factors[e1]
-            f_b = form_factors[e2]
-
-            x_a = compositions[e1]
-            x_b = compositions[e2]
-
-            pre_factor = x_a * x_b * f_a * f_b * 4 * np.pi * rho
-            try:
-                g_r = rdfs['{0}{1}'.format(e1, e2)]
-            except KeyError:
-                pairs = top.select_pairs(selection1='element {}'.format(e1),
-                                         selection2='element {}'.format(e2))
-                if framewise_rdf:
-                    r, g_r = rdf_by_frame(trj,
-                                         pairs=pairs,
-                                         r_range=(0, L / 2),
-                                         bin_width=0.001)
-                else:
-                    r, g_r = md.compute_rdf(trj,
-                                            pairs=pairs,
-                                            r_range=(0, L / 2),
-                                            bin_width=0.001)
-                rdfs['{0}{1}'.format(e1, e2)] = g_r
-            integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
-            num += pre_factor * integral
-        S[i] = num/denom
-    return Q, S
-
-
-def structure_factor_pair_test(trj_full, trj_sep, pair, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False):
-"""
-  trj_full is the trajectory with only IL, and trj_sep renamed the atoms in cation (using name of atom + 'ca') and renamed the
-  atoms in anion (using name of atom + 'an').
-  
-"""     
-    rho = np.mean(trj_full.n_atoms / trj_full.unitcell_volumes)
-    L = np.min(trj_full.unitcell_lengths)
-
-    top_full = trj_full.topology
-    top_sep = trj_sep.topology
-    
-    elements_i = set()
-    elements_j = set()
-    
-    for a in top_sep.atoms:
-        string = a.element.symbol
-        if string[-2:] == pair[0]:
-            elements_i.add((a.element))
-        if string[-2:] == pair[1]:  
-            elements_j.add((a.element))
-
-    Number_scale = dict()
-    
-    elements = set([a.element for a in top_full.atoms])
-
-    compositions = dict()
-    form_factors = dict()
-    rdfs = dict()
-
-    Q = np.logspace(np.log10(Q_range[0]),
-                    np.log10(Q_range[1]),
-                    num=n_points)
-    S = np.zeros(shape=(len(Q)))
-
-    for elem in elements:
-        compositions[elem.symbol] = len(top_full.select('element {}'.format(elem.symbol)))/trj_full.n_atoms
-        form_factors[elem.symbol] = elem.atomic_number
-    
-
-    for i, q in enumerate(Q):
-        num = 0
-        denom = 0
-
-        for elem in elements:
-            denom += compositions[elem.symbol] * form_factors[elem.symbol]
+            denom += (compositions[elem.symbol] * form_factors[elem.symbol])
 
         for (elem1, elem2) in it.product(elements, repeat=2):
             e1 = elem1.symbol
             e2 = elem2.symbol
-            
-            atomtype1 = e1[0]
-            atomtype2 = e2[0]
 
             f_a = form_factors[e1]
             f_b = form_factors[e2]
@@ -161,50 +85,64 @@ def structure_factor_pair_test(trj_full, trj_sep, pair, Q_range=(0.5, 50), n_poi
             x_a = compositions[e1]
             x_b = compositions[e2]
             
-            length_1 = len(top_sep.select('element {}'.format(e1 + pair[0])))
-            length_2 = len(top_sep.select('element {}'.format(e2 + pair[1])))
-
-            
-            if (length_1 == 0) or (length_2 == 0):
-                integral = 0
-
-            else:
+            if pair == None:
                 try:
                     g_r = rdfs['{0}{1}'.format(e1, e2)]
-                    scale = Number_scale['{0}{1}'.format(e1, e2)]
                 except KeyError:
-                    pairs = top_sep.select_pairs(selection1='element {}'.format(e1 + pair[0]),
-                                             selection2='element {}'.format(e2 + pair[1]))
+                    pairs = top.select_pairs(selection1=top.select('element {}'.format(e1)),
+                                             selection2=top.select('element {}'.format(e2)))
                     if framewise_rdf:
-                        r, g_r = rdf_by_frame(trj_sep,
+                        r, g_r = rdf_by_frame(trj,
                                              pairs=pairs,
                                              r_range=(0, L / 2),
                                              bin_width=0.001)
                     else:
-                        r, g_r = md.compute_rdf(trj_sep,
+                        r, g_r = md.compute_rdf(trj,
                                                 pairs=pairs,
                                                 r_range=(0, L / 2),
                                                 bin_width=0.001)
                     rdfs['{0}{1}'.format(e1, e2)] = g_r
+                integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
+                pre_factor = x_a * x_b * f_a * f_b * 4 * np.pi * rho
+            else:
+                n_element_1 = len(top_1.select('element {}'.format(e1)))
+                n_element_2 = len(top_2.select('element {}'.format(e2)))
 
-                    N_i = len(top_full.select('element {}'.format(e1)))
-                    N_j = len(top_full.select('element {}'.format(e2)))
+                if (length_1 == 0) or (length_2 == 0):
+                    integral = 0
+                    pre_factor = 0
+                else:
+                    try:
+                        g_r = rdfs['{0}{1}'.format(e1, e2)]
+                        scale = Number_scale['{0}{1}'.format(e1, e2)]
+                    except KeyError:
+                        pairs = top.select_pairs(selection1=top_1.select('element {}'.format(e1)),
+                                                 selection2=top_2.select('element {}'.format(e2)))
+                        if framewise_rdf:
+                            r, g_r = rdf_by_frame(trj,
+                                                 pairs=pairs,
+                                                 r_range=(0, L / 2),
+                                                 bin_width=0.001)
+                        else:
+                            r, g_r = md.compute_rdf(trj,
+                                                    pairs=pairs,
+                                                    r_range=(0, L / 2),
+                                                    bin_width=0.001)
+                        rdfs['{0}{1}'.format(e1, e2)] = g_r
+                        N_i = len(top.select('element {}'.format(e1)))
+                        N_j = len(top.select('element {}'.format(e2)))
 
-                    N_i_1 = len(top_sep.select('element {}'.format(e1+ pair[0])))
-                    N_i_2 = len(top_sep.select('element {}'.format(e2+ pair[1])))
+                        N_i_1 = len(top_1.select('element {}'.format(e1)))
+                        N_j_2 = len(top_2.select('element {}'.format(e2)))
 
-                    scale = N_i_1 *  N_i_2 / (N_i * N_j)
-                    Number_scale['{0}{1}'.format(e1, e2)] = scale
+                        scale = N_i_1 *  N_j_2 / (N_i * N_j)
+                        Number_scale['{0}{1}'.format(e1, e2)] = scale
 
-                integral = simps(r ** 2 * (g_r - g_r[-1]) * np.sin(q * r) / (q * r), r) * scale
-            
-            pre_factor = 4 * np.pi * rho
-            partial_sq = (integral*pre_factor) 
-            num += (x_a*f_a*x_b*f_b) * (partial_sq)
-
-        S[i] = (num/(denom**2))
+                    integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
+                    pre_factor = x_a * x_b * f_a * f_b * 4 * np.pi * rho * scale
+            num += pre_factor * integral
+        S[i] = num/(denom**2)
     return Q, S
-
 
 def compute_dynamic_rdf(trj):
     """Compute r_ij(t), the distance between atom j at time t and atom i and
