@@ -31,7 +31,7 @@ def structure_factor(trj, pair = None, Q_range=(0.5, 50), n_points=1000, framewi
         pair can be like ('cation', 'anion'), ('anion', 'cation'), ('cation', 'cation'), ('anion', 'anion').     
     Q_range : list or np.ndarray, default=(0.5, 50)
         Minimum and maximum Values of the scattering vector, in `1/nm`, to be
-        consdered. 
+        considered. 
     n_points : int, default=1000
     framewise_rdf : boolean, default=False
         If True, computes the rdf frame-by-frame. This can be useful for
@@ -59,7 +59,7 @@ def structure_factor(trj, pair = None, Q_range=(0.5, 50), n_points=1000, framewi
     compositions = dict()
     form_factors = dict()
     rdfs = dict()
-    
+
     Q = np.logspace(np.log10(Q_range[0]),
                     np.log10(Q_range[1]),
                     num=n_points)
