@@ -51,15 +51,11 @@ def structure_factor(trj, pair=None, Q_range=(0.5, 50), n_points=1000, framewise
 
     top = trj.topology
     elements = set([a.element for a in top.atoms])
-    
-    if pair:  
-        top_1 = trj.atom_slice(trj.topology.select('resname {}'.format(pair[0])))
-        top_2 = trj.atom_slice(trj.topology.select('resname {}'.format(pair[1])))
-        Number_scale = dict()
         
     compositions = dict()
     form_factors = dict()
     rdfs = dict()
+    Number_scale = dict()
 
     Q = np.logspace(np.log10(Q_range[0]),
                     np.log10(Q_range[1]),
@@ -73,6 +69,7 @@ def structure_factor(trj, pair=None, Q_range=(0.5, 50), n_points=1000, framewise
     for i, q in enumerate(Q):
         num = 0
         denom = 0
+        
         for elem in elements:
             denom += (compositions[elem.symbol] * form_factors[elem.symbol])
 
@@ -106,8 +103,10 @@ def structure_factor(trj, pair=None, Q_range=(0.5, 50), n_points=1000, framewise
                 integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
                 pre_factor = x_a * x_b * f_a * f_b * 4 * np.pi * rho
             else:
-                n_element_1 = len(top_1.select('element {}'.format(e1)))
-                n_element_2 = len(top_2.select('element {}'.format(e2)))
+                element_1 = top.select('resname {} and element {}'.format(pair[0], e1))
+                element_2 = top.select('resname {} and element {}'.format(pair[1], e2))
+                n_element_1 = len(element_1)
+                n_element_2 = len(element_2)
 
                 if (n_element_1 == 0) or (n_element_2 == 0):
                     integral = 0
@@ -117,8 +116,9 @@ def structure_factor(trj, pair=None, Q_range=(0.5, 50), n_points=1000, framewise
                         g_r = rdfs['{0}{1}'.format(e1, e2)]
                         scale = Number_scale['{0}{1}'.format(e1, e2)]
                     except KeyError:
-                        pairs = top.select_pairs(selection1=top_1.select('element {}'.format(e1)),
-                                                 selection2=top_2.select('element {}'.format(e2)))
+                        pairs = top.select_pairs(selection1=element_1,
+                                                 selection2=element_2)
+                        
                         if framewise_rdf:
                             r, g_r = rdf_by_frame(trj,
                                                  pairs=pairs,
@@ -133,14 +133,14 @@ def structure_factor(trj, pair=None, Q_range=(0.5, 50), n_points=1000, framewise
                         N_i = len(top.select('element {}'.format(e1)))
                         N_j = len(top.select('element {}'.format(e2)))
 
-                        N_i_1 = len(top_1.select('element {}'.format(e1)))
-                        N_j_2 = len(top_2.select('element {}'.format(e2)))
+                        N_i_1 = n_element_1
+                        N_j_2 = n_element_2
 
                         scale = N_i_1 *  N_j_2 / (N_i * N_j)
                         Number_scale['{0}{1}'.format(e1, e2)] = scale
 
-                    integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
-                    pre_factor = x_a * x_b * f_a * f_b * 4 * np.pi * rho * scale
+                    integral = simps(r ** 2 * (g_r - g_r[-1]) * np.sin(q * r) / (q * r), r) * scale
+                    pre_factor = x_a * x_b * f_a * f_b * 4 * np.pi * rho 
             num += pre_factor * integral
         S[i] = num/(denom**2)
     return Q, S
