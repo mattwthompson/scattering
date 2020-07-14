@@ -14,7 +14,7 @@ from scattering.utils.constants import get_form_factor
 
 
 
-def structure_factor(trj, pair = None, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False):
+def structure_factor(trj, pair=None, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False):
     """Compute the structure factor.
 
     The consdered trajectory must include valid elements.
@@ -27,8 +27,9 @@ def structure_factor(trj, pair = None, Q_range=(0.5, 50), n_points=1000, framewi
     ----------
     trj : mdtraj.Trajectory
         A trajectory for which the structure factor is to be computed.   
-    pair : array-like, shape=(2,), optional, default=('all', 'all')
-        pair can be like ('cation', 'anion'), ('anion', 'cation'), ('cation', 'cation'), ('anion', 'anion').     
+    pair : array-like, shape=(2,), optional, default=None
+        Residue name pairs to calculate partial S(Q). If default=None, the function is 
+        calculating total S(Q).
     Q_range : list or np.ndarray, default=(0.5, 50)
         Minimum and maximum Values of the scattering vector, in `1/nm`, to be
         considered. 
@@ -51,7 +52,7 @@ def structure_factor(trj, pair = None, Q_range=(0.5, 50), n_points=1000, framewi
     top = trj.topology
     elements = set([a.element for a in top.atoms])
     
-    if pair != None:  
+    if pair:  
         top_1 = trj.atom_slice(trj.topology.select('resname {}'.format(pair[0])))
         top_2 = trj.atom_slice(trj.topology.select('resname {}'.format(pair[1])))
         Number_scale = dict()
@@ -108,7 +109,7 @@ def structure_factor(trj, pair = None, Q_range=(0.5, 50), n_points=1000, framewi
                 n_element_1 = len(top_1.select('element {}'.format(e1)))
                 n_element_2 = len(top_2.select('element {}'.format(e2)))
 
-                if (length_1 == 0) or (length_2 == 0):
+                if (n_element_1 == 0) or (n_element_2 == 0):
                     integral = 0
                     pre_factor = 0
                 else:
