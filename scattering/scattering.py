@@ -154,7 +154,11 @@ def structure_factor(trj, pair=None, Q_range=(0.5, 50), n_points=1000, framewise
                         scale = N_i_1 *  N_j_2 / (N_i * N_j)
                         Number_scale['{0}{1}'.format(e1, e2)] = scale
                 if len(g_r) > 1:
+<<<<<<< HEAD
                     integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r) * scale
+=======
+                    integral = simps(r ** 2 * (g_r - g_r[-1]) * np.sin(q * r) / (q * r), r) * scale
+>>>>>>> 0656a75d978ed39dfe6eaff2ce86f0c0eea030ab
                 else:
                     integral = 0                
                 pre_factor = x_a * x_b * f_a * f_b * 4 * np.pi * rho 
