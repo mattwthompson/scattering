@@ -65,25 +65,24 @@ def structure_factor(trj, pair=None, Q_range=(0.5, 50), n_points=1000, framewise
     for elem in elements:
         compositions[elem.symbol] = len(top.select('element {}'.format(elem.symbol)))/trj.n_atoms
         form_factors[elem.symbol] = elem.atomic_number
-
-    for i, q in enumerate(Q):
-        num = 0
-        denom = 0
         
-        for elem in elements:
-            denom += (compositions[elem.symbol] * form_factors[elem.symbol])
+    denom = 0
+    for elem in elements:
+        denom += (compositions[elem.symbol] * form_factors[elem.symbol])
+    
+    if pair == None:
+        for i, q in enumerate(Q):
+            num = 0
+            for (elem1, elem2) in it.product(elements, repeat=2):
+                e1 = elem1.symbol
+                e2 = elem2.symbol
 
-        for (elem1, elem2) in it.product(elements, repeat=2):
-            e1 = elem1.symbol
-            e2 = elem2.symbol
+                f_a = form_factors[e1]
+                f_b = form_factors[e2]
 
-            f_a = form_factors[e1]
-            f_b = form_factors[e2]
+                x_a = compositions[e1]
+                x_b = compositions[e2]
 
-            x_a = compositions[e1]
-            x_b = compositions[e2]
-            
-            if pair == None:
                 try:
                     g_r = rdfs['{0}{1}'.format(e1, e2)]
                 except KeyError:
@@ -102,23 +101,39 @@ def structure_factor(trj, pair=None, Q_range=(0.5, 50), n_points=1000, framewise
                     rdfs['{0}{1}'.format(e1, e2)] = g_r
                 integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
                 pre_factor = x_a * x_b * f_a * f_b * 4 * np.pi * rho
-            else:
-                element_1 = top.select('resname {} and element {}'.format(pair[0], e1))
-                element_2 = top.select('resname {} and element {}'.format(pair[1], e2))
-                n_element_1 = len(element_1)
-                n_element_2 = len(element_2)
+                num += pre_factor * integral
+            S[i] = num
+    
+    else:
+        for i, q in enumerate(Q):
+            num = 0
+            for (elem1, elem2) in it.product(elements, repeat=2):
+                e1 = elem1.symbol
+                e2 = elem2.symbol
 
-                if (n_element_1 == 0) or (n_element_2 == 0):
-                    integral = 0
-                    pre_factor = 0
-                else:
-                    try:
-                        g_r = rdfs['{0}{1}'.format(e1, e2)]
-                        scale = Number_scale['{0}{1}'.format(e1, e2)]
-                    except KeyError:
+                f_a = form_factors[e1]
+                f_b = form_factors[e2]
+
+                x_a = compositions[e1]
+                x_b = compositions[e2]
+
+                try:
+                    g_r = rdfs['{0}{1}'.format(e1, e2)]
+                    scale = Number_scale['{0}{1}'.format(e1, e2)]
+                except KeyError:
+                    element_1 = top.select('resname {} and element {}'.format(pair[0], e1))
+                    element_2 = top.select('resname {} and element {}'.format(pair[1], e2))
+                    n_element_1 = len(element_1)
+                    n_element_2 = len(element_2)
+                    if (n_element_1 == 0) or (n_element_2 == 0):
+                        g_r = np.array([0])
+                        rdfs['{0}{1}'.format(e1, e2)] = g_r
+                        scale = 0
+                        Number_scale['{0}{1}'.format(e1, e2)] = scale
+                    else:
                         pairs = top.select_pairs(selection1=element_1,
                                                  selection2=element_2)
-                        
+
                         if framewise_rdf:
                             r, g_r = rdf_by_frame(trj,
                                                  pairs=pairs,
@@ -138,11 +153,14 @@ def structure_factor(trj, pair=None, Q_range=(0.5, 50), n_points=1000, framewise
 
                         scale = N_i_1 *  N_j_2 / (N_i * N_j)
                         Number_scale['{0}{1}'.format(e1, e2)] = scale
-
+                if len(g_r) > 1:
                     integral = simps(r ** 2 * (g_r - g_r[-1]) * np.sin(q * r) / (q * r), r) * scale
-                    pre_factor = x_a * x_b * f_a * f_b * 4 * np.pi * rho 
-            num += pre_factor * integral
-        S[i] = num/(denom**2)
+                else:
+                    integral = 0                
+                pre_factor = x_a * x_b * f_a * f_b * 4 * np.pi * rho 
+                num += pre_factor * integral
+            S[i] = num
+    S = S/(denom**2)
     return Q, S
 
 def compute_dynamic_rdf(trj):
