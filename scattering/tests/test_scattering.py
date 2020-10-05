@@ -6,8 +6,8 @@ import pytest
 from scattering.scattering import structure_factor
 from scattering.utils.io import get_fn
 
-@pytest.mark.parametrize('method', ['fz'])
-def test_structure_factor(method):
+@pytest.mark.parametrize('weighting_factor', ['fz'])
+def test_structure_factor(weighting_factor):
     trj = md.load(
         get_fn('spce.xtc'),
         top=get_fn('spce.gro')
@@ -16,9 +16,9 @@ def test_structure_factor(method):
     Q, S = structure_factor(trj,
                             Q_range=(0.5, 200),
                             framewise_rdf=False,
-                            method=method)
+                            weighting_factor=weighting_factor)
 
-def test_invalid_sq_method():
+def test_invalid_sq_weigting_factor():
     trj = md.load(
         get_fn('spce.xtc'),
         top=get_fn('spce.gro')
@@ -28,4 +28,4 @@ def test_invalid_sq_method():
         Q, S = structure_factor(trj,
                                 Q_range=(0.5, 200),
                                 framewise_rdf=False,
-                                method='invalid')
+                                weighting_factor='invalid')
