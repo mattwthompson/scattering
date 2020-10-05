@@ -14,8 +14,9 @@ from scattering.utils.constants import get_form_factor
 
 
 
-def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False, method='fz'):
-    """Compute the structure factor.
+def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False, weighting_factor='fz'):
+    """Compute the structure factor through a fourier transform of
+    the radial distribution function.
 
     The consdered trajectory must include valid elements.
 
@@ -34,8 +35,8 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
     framewise_rdf : boolean, default=False
         If True, computes the rdf frame-by-frame. This can be useful for
         managing memory in large systems.
-    method : string, optional, default='fz'
-        Formalism for calculating the structure-factor, default is Faber-Ziman.
+    weighting_factor : string, optional, default='fz'
+         Weighting factor for calculating the structure-factor, default is Faber-Ziman.
         See https://openscholarship.wustl.edu/etd/1358/ and http://isaacs.sourceforge.net/manual/page26_mn.html for details.
 
     Returns
@@ -46,10 +47,10 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
         The structure factor of the trajectory
 
     """
-    if method not in ['fz']:
-        raise ValueError('Invalid method `{}` is given.'
-                         '  The only method currently supported is `fz`.'.format(
-                             method))
+    if weighting_factor not in ['fz']:
+        raise ValueError('Invalid weighting_factor `{}` is given.'
+                         '  The only weighting_factor currently supported is `fz`.'.format(
+                             weighting_factor))
 
     rho = np.mean(trj.n_atoms / trj.unitcell_volumes)
     L = np.min(trj.unitcell_lengths)
@@ -105,7 +106,7 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
                 rdfs['{0}{1}'.format(e1, e2)] = g_r
             integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
 
-            if method == 'fz':
+            if weighting_factor == 'fz':
                 pre_factor = 4 * np.pi * rho
                 partial_sq = (integral*pre_factor) + 1
                 num += (x_a*f_a*x_b*f_b) * (partial_sq)
