@@ -20,6 +20,8 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
 
     The consdered trajectory must include valid elements.
 
+    Atomic form factors are estimated by atomic number.
+
     The computed structure factor is only valid for certain values of Q. The
     lowest value of Q that can sufficiently be described by a box of
     characteristic length `L` is `2 * pi / (L / 2)`.
