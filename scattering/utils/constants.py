@@ -38,13 +38,13 @@ b_mat = {
 def get_form_factor(atomic_number, isotope_ratios, probe="neutron"):
 
     assert (
-        np.isclose(sum(v for v in isotope_ratios.elements), 1.0), 
+        np.isclose(sum(v for v in isotope_ratios.values()), 1.0), 
         f"Unnormalized fractions for atomic_number {atomic_number} in get_form_factor"
     )
 
     if probe == "neutron":
         b = b_mat[atomic_number]
-        return [b[key]*val for key, val in isotope_ratios.items()]
+        return [b[key]*val for key, val in isotope_ratios.items()].pop()
     else:
         warnings.warn(
             "Ignoring attenuation and treating form factor as constant equal to atomic # for X-ray calculation."

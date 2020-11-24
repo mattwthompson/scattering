@@ -14,7 +14,7 @@ from scattering.utils.constants import get_form_factor
 
 
 
-def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False, weighting_factor='fz', isotopes=None, probe="neutron"):
+def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False, weighting_factor='fz', isotopes={}, probe="neutron"):
     """Compute the structure factor through a fourier transform of
     the radial distribution function.
 
@@ -131,7 +131,9 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
                 partial_sq = (integral*pre_factor) + 1
                 num += (x_a*f_a*x_b*f_b) * (partial_sq)
         # Faber-Ziman comes out in units of barn/sr/atom
-        if weighting_factor != 'fz':
+        if weighting_factor == 'fz':
+            S[i] = num
+        else:
             S[i] = (num/(denom**2))
     return Q, S
 
