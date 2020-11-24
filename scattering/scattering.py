@@ -128,11 +128,13 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
 
             if weighting_factor == 'fz':
                 pre_factor = 4 * np.pi * rho
-                partial_sq = (integral*pre_factor) + 1
+                if e1 == e2:
+                    pre_factor *= 2.0
+                partial_sq = (integral*pre_factor)
                 num += (x_a*f_a*x_b*f_b) * (partial_sq)
-        # Faber-Ziman comes out in units of barn/sr/atom
+        # Faber-Ziman comes out in units of barn/sr/atom. 100 is to convert between fm^2 and barn.
         if weighting_factor == 'fz':
-            S[i] = num/len(Q)
+            S[i] = num/100.0
         else:
             S[i] = (num/(denom**2))
     return Q, S
