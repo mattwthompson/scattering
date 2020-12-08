@@ -128,7 +128,8 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
 
             if weighting_factor == 'fz':
                 pre_factor = 4 * np.pi * rho
-                if e1 == e2:
+                # It's an unrestricted double sum, so non-identical pairs need to be counted twice
+                if e1 != e2:
                     pre_factor *= 2.0
                 partial_sq = (integral*pre_factor)
                 num += (x_a*f_a*x_b*f_b) * (partial_sq)
