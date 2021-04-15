@@ -13,6 +13,7 @@ follows:
 - `NumPy`
 - `MDTraj`
 - `SciPy`
+- `progressbar2`
 
 ## Installation
 Installation is currently only available from source.
