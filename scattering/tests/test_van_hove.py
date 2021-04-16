@@ -1,11 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import mdtraj as md
+import pytest
 
 from scattering.van_hove import compute_van_hove
 from scattering.utils.io import get_fn
 
-def test_van_hove():
+@pytest.mark.parametrize("self_correlation", [True, False, "self"])
+def test_van_hove(self_correlation):
     trj = md.load(
         get_fn('spce.xtc'),
         top=get_fn('spce.gro')
@@ -13,7 +15,9 @@ def test_van_hove():
 
     chunk_length = 2
 
-    r, t, g_r_t = compute_van_hove(trj, chunk_length=chunk_length)
+    r, t, g_r_t = compute_van_hove(trj, 
+                                   self_correlation=self_correlation,
+                                   chunk_length=chunk_length)
 
     assert len(t) == 2
     assert len(r) == 200
