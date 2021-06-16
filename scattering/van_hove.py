@@ -1,4 +1,5 @@
 import multiprocessing
+import sys
 import itertools as it
 
 import numpy as np
@@ -61,9 +62,14 @@ def compute_van_hove(trj, chunk_length, water=False,
     manager = multiprocessing.Manager()
     partial_dict = manager.dict()
     jobs = []
+    version_info = sys.version_info
     for d in data:
         with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
-            p = pool.Process(target=worker, args=(partial_dict, d))
+            if version_info.major == 3 and version_info.minor <= 7:
+                p = pool.Process(target=worker, args=(partial_dict, d))
+            elif version_info.major == 3 and version_info.minor >= 8:
+                ctx = multiprocessing.get_context()
+                p = pool.Process(ctx, target=worker, args=(partial_dict, d))
             jobs.append(p)
             p.start()
 
