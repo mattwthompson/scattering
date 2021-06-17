@@ -9,7 +9,7 @@ def test_van_hove():
     trj = md.load(
         get_fn('spce.xtc'),
         top=get_fn('spce.gro')
-    )[:100]
+    )
 
     chunk_length = 2
 
@@ -20,7 +20,7 @@ def test_van_hove():
     assert np.shape(g_r_t) == (2, 200)
 
     # Check normalization to ~1
-    assert 0.95 < np.mean(g_r_t[:, 100:]) < 1.05
+    assert 0.95 < np.mean(g_r_t[:, -10:]) < 1.05
 
     fig, ax = plt.subplots()
     for i in range(len(t)):

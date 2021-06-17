@@ -1,3 +1,5 @@
+import multiprocessing
+import sys
 import itertools as it
 
 import numpy as np
@@ -42,21 +44,40 @@ def compute_van_hove(trj, chunk_length, water=False,
     n_physical_atoms = len([a for a in trj.top.atoms if a.element.mass > 0])
     unique_elements = list(set([a.element for a in trj.top.atoms if a.element.mass > 0]))
 
-    partial_dict = dict()
-
+    data = []
     for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
-        print('doing {0} and {1} ...'.format(elem1, elem2))
-        r, g_r_t_partial = compute_partial_van_hove(trj=trj,
-                                                    chunk_length=chunk_length,
-                                                    selection1='element {}'.format(elem1.symbol),
-                                                    selection2='element {}'.format(elem2.symbol),
-                                                    r_range=r_range,
-                                                    bin_width=bin_width,
-                                                    n_bins=n_bins,
-                                                    self_correlation=self_correlation,
-                                                    periodic=periodic,
-                                                    opt=opt)
-        partial_dict[(elem1, elem2)] = g_r_t_partial
+        data.append([
+            trj,
+            chunk_length,
+            'element {}'.format(elem1.symbol),
+            'element {}'.format(elem2.symbol),
+            r_range,
+            bin_width,
+            n_bins,
+            self_correlation,
+            periodic,
+            opt,
+        ])
+
+    manager = multiprocessing.Manager()
+    partial_dict = manager.dict()
+    jobs = []
+    version_info = sys.version_info
+    for d in data:
+        with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
+            if version_info.major == 3 and version_info.minor <= 7:
+                p = pool.Process(target=worker, args=(partial_dict, d))
+            elif version_info.major == 3 and version_info.minor >= 8:
+                ctx = multiprocessing.get_context()
+                p = pool.Process(ctx, target=worker, args=(partial_dict, d))
+            jobs.append(p)
+            p.start()
+
+    for proc in jobs:
+            proc.join()
+
+    r = partial_dict['r']
+    del partial_dict['r']
 
     if partial:
         return partial_dict
@@ -66,13 +87,12 @@ def compute_van_hove(trj, chunk_length, water=False,
 
     for key, val in partial_dict.items():
         elem1, elem2 = key
-        concentration1 = trj.atom_slice(trj.top.select('element {}'.format(elem1.symbol))).n_atoms / n_physical_atoms
-        concentration2 = trj.atom_slice(trj.top.select('element {}'.format(elem2.symbol))).n_atoms / n_physical_atoms
-        form_factor1 = get_form_factor(element_name=elem1.symbol, water=water)
-        form_factor2 = get_form_factor(element_name=elem2.symbol, water=water)
+        concentration1 = trj.atom_slice(trj.top.select(elem1)).n_atoms / n_physical_atoms
+        concentration2 = trj.atom_slice(trj.top.select(elem2)).n_atoms / n_physical_atoms
+        form_factor1 = get_form_factor(element_name=elem1.split()[1], water=water)
+        form_factor2 = get_form_factor(element_name=elem2.split()[1], water=water)
 
         coeff = form_factor1 * concentration1 * form_factor2 * concentration2
-
         if g_r_t is None:
             g_r_t = np.zeros_like(val)
         g_r_t += val * coeff
@@ -89,6 +109,13 @@ def compute_van_hove(trj, chunk_length, water=False,
     t = trj.time[:chunk_length]
 
     return r, t, g_r_t_final
+
+
+def worker(return_dict, data):
+    key = (data[2], data[3])
+    r, g_r_t_partial = compute_partial_van_hove(*data)
+    return_dict[key] = g_r_t_partial
+    return_dict['r'] = r
 
 
 def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=None,
