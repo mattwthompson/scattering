@@ -12,3 +12,4 @@ dependencies:
  - pytest-azurepipelines
  - pytest-cov
  - python<=3.8
+ - matplotlib

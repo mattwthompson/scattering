@@ -1,13 +1,15 @@
 import numpy as np
+import mdtraj as md
 
 from scattering.utils.io import get_fn
 from scattering.utils.features import find_local_maxima, find_local_minima
 
 
 def test_local_maxima():
+    """ Find maxs and mins for O-O RDF of SPC/E water"""
     data = np.loadtxt(get_fn('rdf.txt'))
-    r = data[:, 0]
-    g_r = data[:, 1]
+    r = data[:,0]
+    g_r = data[:,1]
 
     r_maxes = list()
     for i, r_guess in enumerate([0.3, 0.45, 0.65]):
@@ -20,5 +22,5 @@ def test_local_maxima():
         r_mins.append(r_min)
     print(r_mins)
 
-    assert np.allclose(r_maxes, [0.2775, 0.4375, 0.6675])
-    assert np.allclose(r_mins, [0.3325, 0.5575])
+    assert np.allclose(r_maxes, [0.2725, 0.4475, 0.6775])
+    assert np.allclose(r_mins, [0.3325, 0.5625])
