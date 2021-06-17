@@ -10,7 +10,7 @@ from scattering.utils.utils import get_dt
 from scattering.utils.constants import get_form_factor
 
 
-def compute_van_hove(trj, chunk_length, parallel=True, water=False,
+def compute_van_hove(trj, chunk_length, parallel=False, water=False,
                      r_range=(0, 1.0), bin_width=0.005, n_bins=None,
                      self_correlation=True, periodic=True, opt=True, partial=False):
     """Compute the partial van Hove function of a trajectory
