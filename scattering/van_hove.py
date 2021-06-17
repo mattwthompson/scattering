@@ -10,7 +10,7 @@ from scattering.utils.utils import get_dt
 from scattering.utils.constants import get_form_factor
 
 
-def compute_van_hove(trj, chunk_length, water=False,
+def compute_van_hove(trj, chunk_length, parallel=True, water=False,
                      r_range=(0, 1.0), bin_width=0.005, n_bins=None,
                      self_correlation=True, periodic=True, opt=True, partial=False):
     """Compute the partial van Hove function of a trajectory
@@ -21,6 +21,8 @@ def compute_van_hove(trj, chunk_length, water=False,
         trajectory on which to compute the Van Hove function
     chunk_length : int
         length of time between restarting averaging
+    parallel : bool, default=True
+        Use parallel implementation with `multiprocessing`
     water : bool
         use X-ray form factors for water that account for polarization
     r_range : array-like, shape=(2,), optional, default=(0.0, 1.0)
@@ -44,40 +46,58 @@ def compute_van_hove(trj, chunk_length, water=False,
     n_physical_atoms = len([a for a in trj.top.atoms if a.element.mass > 0])
     unique_elements = list(set([a.element for a in trj.top.atoms if a.element.mass > 0]))
 
-    data = []
-    for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
-        data.append([
-            trj,
-            chunk_length,
-            'element {}'.format(elem1.symbol),
-            'element {}'.format(elem2.symbol),
-            r_range,
-            bin_width,
-            n_bins,
-            self_correlation,
-            periodic,
-            opt,
-        ])
+    if parallel:
+        data = []
+        for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
+            data.append([
+                trj,
+                chunk_length,
+                'element {}'.format(elem1.symbol),
+                'element {}'.format(elem2.symbol),
+                r_range,
+                bin_width,
+                n_bins,
+                self_correlation,
+                periodic,
+                opt,
+            ])
 
-    manager = multiprocessing.Manager()
-    partial_dict = manager.dict()
-    jobs = []
-    version_info = sys.version_info
-    for d in data:
-        with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
-            if version_info.major == 3 and version_info.minor <= 7:
-                p = pool.Process(target=worker, args=(partial_dict, d))
-            elif version_info.major == 3 and version_info.minor >= 8:
-                ctx = multiprocessing.get_context()
-                p = pool.Process(ctx, target=worker, args=(partial_dict, d))
-            jobs.append(p)
-            p.start()
+        manager = multiprocessing.Manager()
+        partial_dict = manager.dict()
+        jobs = []
+        version_info = sys.version_info
+        for d in data:
+            with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
+                if version_info.major == 3 and version_info.minor <= 7:
+                    p = pool.Process(target=worker, args=(partial_dict, d))
+                elif version_info.major == 3 and version_info.minor >= 8:
+                    ctx = multiprocessing.get_context()
+                    p = pool.Process(ctx, target=worker, args=(partial_dict, d))
+                jobs.append(p)
+                p.start()
 
-    for proc in jobs:
-            proc.join()
+        for proc in jobs:
+                proc.join()
 
-    r = partial_dict['r']
-    del partial_dict['r']
+        r = partial_dict['r']
+        del partial_dict['r']
+
+    else:
+        partial_dict = dict()
+
+        for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
+            print('doing {0} and {1} ...'.format(elem1, elem2))
+            r, g_r_t_partial = compute_partial_van_hove(trj=trj,
+                                                        chunk_length=chunk_length,
+                                                        selection1='element {}'.format(elem1.symbol),
+                                                        selection2='element {}'.format(elem2.symbol),
+                                                        r_range=r_range,
+                                                        bin_width=bin_width,
+                                                        n_bins=n_bins,
+                                                        self_correlation=self_correlation,
+                                                        periodic=periodic,
+                                                        opt=opt)
+            partial_dict[('element {}'.format(elem1.symbol), 'element {}'.format(elem2.symbol))] = g_r_t_partial
 
     if partial:
         return partial_dict
