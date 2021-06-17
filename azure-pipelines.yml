@@ -1,0 +1,72 @@
+trigger:
+  branches:
+    include:
+    - master
+  tags:
+    include:
+    - 0.*
+
+pr:
+  autoCancel: true
+  branches:
+    include:
+      - master
+  paths:
+    exclude:
+    - docs
+
+schedules:
+- cron: "0 0 * * *"
+  displayName: Daily midnight build for master
+  branches:
+    include:
+    - master
+  always: true
+
+
+stages:
+  - stage: Test
+    jobs:
+      - job: NoBleeding
+        strategy:
+          matrix:
+            Python37Ubuntu:
+              imageName: 'ubuntu-latest'
+              python.version: 3.7
+            Python38Ubuntu:
+              imageName: 'ubuntu-latest'
+              python.version: 3.8
+            Python37macOS:
+              imageName: 'macOS-latest'
+              python.version: 3.7
+            Python38macOS:
+              imageName: 'macOS-latest'
+              python.version: 3.8
+
+          - bash: |
+              conda update -c defaults conda
+              conda update --all
+              sed -i -E 's/python.*$/python='$(python.version)'/' environment-dev.yml
+              conda env create -f environment-dev.yml
+              source activate scattering-dev
+              pip install -e .
+            displayName: Create Conda env, Activate, Install dependencies, Install Branch
+
+          - bash: |
+              source activate scattering-dev
+              python -m pytest -v --cov=scattering --cov-report=html --pyargs scattering
+            displayName: Run Tests
+
+          - bash: |
+              source activate test-environment
+              bash <(curl -s https://codecov.io/bash) -C $(Build.SourceVersion)
+            condition: and( eq( variables['Agent.OS'], 'Linux' ), eq( variables['python.version'], '3.8' ) )
+            displayName: Upload Coverage Report
+
+          - task: PublishCodeCoverageResults@1
+            inputs:
+              codeCoverageTool: Cobertura
+              summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
+              reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
+            condition: and( eq( variables['Agent.OS'], 'Linux' ), eq( variables['python.version'], '3.7' ) )
+            displayName: Publish Coverage Report
