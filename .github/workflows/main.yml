@@ -32,7 +32,7 @@ jobs:
         auto-activate-base: false
     - name: Additional info about the build
       shell : bash
-      run :
+      run : |
         uname -a
         df -h
         ulimit -a
