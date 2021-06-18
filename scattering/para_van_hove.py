@@ -8,7 +8,7 @@ from progressbar import ProgressBar
 
 from scattering.utils.utils import get_dt
 from scattering.utils.constants import get_form_factor
-
+from scattering.van_hove import compute_van_hove
 
 def compute_van_hove_para(trj, chunk_length, chunk_starts, water=False,
                      r_range=(0, 1.0), bin_width=0.005, n_bins=None,
@@ -16,7 +16,7 @@ def compute_van_hove_para(trj, chunk_length, chunk_starts, water=False,
 
     data = []
     for start in chunk_starts:
-        end = frame + chunk_length
+        end = start + chunk_length
         if end > trj.n_frames:
             continue
         chunk = trj[start:end]
@@ -33,6 +33,7 @@ def compute_van_hove_para(trj, chunk_length, chunk_starts, water=False,
             opt,
         ])
 
+
     manager = multiprocessing.Manager()
     partial_dict = manager.dict()
     jobs = []
@@ -48,13 +49,14 @@ def compute_van_hove_para(trj, chunk_length, chunk_starts, water=False,
             p.start()
 
     for proc in jobs:
-            proc.join()
+        proc.join()
 
     r = partial_dict['r']
     del partial_dict['r']
 
     if partial:
         return partial_dict
+
 
     g_r_t = None
 
@@ -73,13 +75,14 @@ def compute_van_hove_para(trj, chunk_length, chunk_starts, water=False,
     # g_r_t_final /= norm
 
     t = trj.time[:chunk_length]
+    
 
-    return r, t, g_r_t_final
+    return r, t, g_r_t
 
 
 def worker(return_dict, data):
     key = data[0]
-    data.popleft()
-    r, g_r_t = compute_van_hove(*data)
+    data.pop(0)
+    r, t, g_r_t = compute_van_hove(*data)
     return_dict[key] = g_r_t
     return_dict['r'] = r
