@@ -5,7 +5,7 @@ from scattering.van_hove import compute_van_hove, compute_partial_van_hove
 from scattering.utils.utils import get_dt
 from scattering.utils.features import find_local_maxima
 
-def run_total_vhf(trj, chunk_length, n_chunks, parallel=False, water=True,
+def run_total_vhf(trj, chunk_length, n_chunks, step=1, parallel=False, water=True,
                      r_range=(0, 1.0), bin_width=0.005, n_bins=None,
                      self_correlation=True, periodic=True, opt=True, partial=False):
     """ Run `calculate_van_hove` for specific number of number of chunks
@@ -19,6 +19,8 @@ def run_total_vhf(trj, chunk_length, n_chunks, parallel=False, water=True,
         Number of frames in chunk
     n_chunks : int
         Number of chunks to average over
+    step : int, default=1
+        Step interval of frames to analyze
     parallel : bool, default=True
         Use parallel implementation with `multiprocessing`
     water : bool
@@ -44,13 +46,17 @@ def run_total_vhf(trj, chunk_length, n_chunks, parallel=False, water=True,
     """
     # Calculate intervals between starting points
     starting_frames = np.linspace(0, trj.n_frames-chunk_length, n_chunks, dtype=int)
+    if step != 1:
+        frames_in_chunk = int(chunk_length / step)
+    else:
+        frames_in_chunk = chunk_length
     vhf_list = list()
     for idx, start in enumerate(starting_frames):
         end = start + chunk_length
-        chunk = trj[start:end]
+        chunk = trj[start:end:step]
         print(f"Analyzing frames {start} to {end}...")
         r, t, g_r_t = compute_van_hove(trj=chunk,
-                                       chunk_length=chunk_length,
+                                       chunk_length=frames_in_chunk,
                                        parallel=parallel,
                                        water=water,
                                        r_range=r_range,
@@ -69,7 +75,7 @@ def run_total_vhf(trj, chunk_length, n_chunks, parallel=False, water=True,
     return r, t_save, vhf_mean
 
 def run_partial_vhf(trj, chunk_length, selection1, selection2, n_chunks, water=True,
-                     r_range=(0, 1.0), bin_width=0.005, n_bins=None,
+                     step=1, r_range=(0, 1.0), bin_width=0.005, n_bins=None,
                      self_correlation=True, periodic=True, opt=True):
     """ Run `calculate_van_hove` for specific number of number of chunks
         and chunk_length
@@ -82,6 +88,8 @@ def run_partial_vhf(trj, chunk_length, selection1, selection2, n_chunks, water=T
         Number of frames in chunk
     n_chunks : int
         Number of chunks to average over
+    step : int, default=1
+        Step interval of frames to analyze
     selection1 : str
         selection to be considered, in the style of MDTraj atom selection
     selection2 : str
@@ -108,12 +116,16 @@ def run_partial_vhf(trj, chunk_length, selection1, selection2, n_chunks, water=T
     # Calculate intervals between starting points
     starting_frames = np.linspace(0, trj.n_frames-chunk_length, n_chunks, dtype=int)
     vhf_list = list()
+    if step != 1:
+        frames_in_chunk = int(chunk_length / step)
+    else:
+        frames_in_chunk = chunk_length
     for idx, start in enumerate(starting_frames):
         end = start + chunk_length
         chunk = trj[start:end]
         print(f"Analyzing frames {start} to {end}...")
         r, g_r_t = compute_partial_van_hove(trj=chunk,
-                                       chunk_length=chunk_length,
+                                       chunk_length=frames_in_chunk,
                                        selection1='element {}'.format(selection1),
                                        selection2='element {}'.format(selection2),
                                        r_range=r_range,
