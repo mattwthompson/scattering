@@ -122,7 +122,7 @@ def run_partial_vhf(trj, chunk_length, selection1, selection2, n_chunks, water=T
         frames_in_chunk = chunk_length
     for idx, start in enumerate(starting_frames):
         end = start + chunk_length
-        chunk = trj[start:end]
+        chunk = trj[start:end:step]
         print(f"Analyzing frames {start} to {end}...")
         r, g_r_t = compute_partial_van_hove(trj=chunk,
                                        chunk_length=frames_in_chunk,
@@ -138,6 +138,6 @@ def run_partial_vhf(trj, chunk_length, selection1, selection2, n_chunks, water=T
         vhf_list.append(g_r_t)
 
     vhf_mean = np.mean(vhf_list, axis=0)
-    t_save = trj.time[0:chunk_length]
+    t_save = trj.time[0:chunk_length:step]
 
     return r, t_save, vhf_mean
