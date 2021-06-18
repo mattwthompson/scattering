@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import mdtraj as md
-from scattering.van_hove import compute_van_hove
+from scattering.van_hove import compute_van_hove, compute_partial_van_hove
 from scattering.utils.utils import get_dt
 from scattering.utils.features import find_local_maxima
 
@@ -114,9 +114,8 @@ def run_partial_vhf(trj, chunk_length, selection1, selection2, n_chunks, water=T
         print(f"Analyzing frames {start} to {end}...")
         r, g_r_t = compute_partial_van_hove(trj=chunk,
                                        chunk_length=chunk_length,
-                                       selection1='element {}'.format(combo[0]),
-                                       selection2='element {}'.format(combo[1]),
-                                       water=water,
+                                       selection1='element {}'.format(selection1),
+                                       selection2='element {}'.format(selection2),
                                        r_range=r_range,
                                        bin_width=bin_width,
                                        n_bins=n_bins,
