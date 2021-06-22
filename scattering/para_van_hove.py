@@ -21,6 +21,7 @@ def compute_van_hove_para(trj, chunk_length, chunk_starts, water=False,
             result_dict,
             chunk, 
             chunk_length, 
+            False,
             water, 
             r_range, 
             bin_width, 
@@ -51,8 +52,8 @@ def compute_van_hove_para(trj, chunk_length, chunk_starts, water=False,
     return r, t, g_r_t
 
 
-def worker(start, result_dict, chunk, chunk_length, water, r_range, bin_width, n_bins, self_correlation, periodic, opt):
+def worker(start, result_dict, chunk, chunk_length, parallel, water, r_range, bin_width, n_bins, self_correlation, periodic, opt):
 
-    r, t, g_r_t = compute_van_hove(chunk, chunk_length, water, r_range, bin_width, n_bins, self_correlation, periodic, opt)
+    r, t, g_r_t = compute_van_hove(chunk, chunk_length, parallel, water, r_range, bin_width, n_bins, self_correlation, periodic, opt)
     result_dict[start] = g_r_t
     result_dict['r'] = r
