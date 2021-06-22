@@ -3,11 +3,12 @@ import numpy as np
 from scattering.utils.constants import get_form_factor
 from scattering.van_hove import compute_van_hove
 
-def compute_van_hove_para(trj, chunk_length, chunk_starts, water=False,
+def compute_van_hove_para(trj, chunk_length, chunk_starts, cpu_count=None, water=False,
                      r_range=(0, 1.0), bin_width=0.005, n_bins=None,
                      self_correlation=True, periodic=True, opt=True, partial=False): 
 
-    cpu_count = multiprocessing.cpu_count()
+    if cpu_count == None:    
+        cpu_count = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(processes = cpu_count, maxtasksperchild = 1)
     manager = multiprocessing.Manager()
     result_dict = manager.dict()
