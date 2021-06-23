@@ -214,3 +214,117 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
         g_r_t += g_r_t_frame
 
     return r, g_r_t
+def atom_conc_from_list(atom_list, trj):
+     """ 
+    Generates a dictionary of atom concentration with the key corresponding to the atoms in atom_list
+
+    Parameters
+    ----------
+    trj : mdtrj.Trajectory
+        trajectory on which partial vhf were calculated form
+    atom_list : list, optional, default = None
+        list of unique atoms. if left at default, atom_list generated from trj
+
+
+    Return
+    -------
+    mf : dictionary
+        dictionary containing concentration of atoms from atom_list
+    """
+
+    #atom_list generation
+    if atom_list = None:
+        topology = trj.topology
+        atom_list = []
+        for i in range(topology.n_atoms):
+            if topology.atom(i).name not in atom_list:
+                atom_list.append(topology.atom(i).name)
+        atom_list = sorted(set(atom_list))
+
+    atom_num_list = []
+    mf = {}
+    for i in range(len(atom_list)):
+        atom_trj = trj.atom_slice(trj.topology.select(f"name {atom_list[i]}"))
+        num_atom = atom_trj.n_atoms
+        atom_num_list.append(num_atom)
+    for i in range(len(atom_num_list)):
+        mf[f'{atom_list[i]}'] = atom_num_list[i]/trj.n_atoms
+    return mf
+
+
+def form_factor_from_list(atom_list):
+    """ 
+    Generates a dictionary of atom form factors with keys corresponding to the atoms in atom_list
+
+    Parameters
+    ----------
+    atom_list : list
+        list of unique atoms
+
+
+    Return
+    -------
+    ff : dictionary
+        dictionary containing form factors of atoms from atom_list
+    """
+    
+    ff = {}
+    for i in range(len(atom_list)):
+            ff[f'{atom_list[i]}'] =  get_form_factor(element_name = f"{atom_list[i]}", water = None)
+    return ff
+
+
+def vhf_from_pvhf(trj, partial_dict,  atom_list = None)
+    """ 
+    Compute the total van Hove function from partial van Hove functions
+
+
+    Parameters
+    ----------
+    trj : mdtrj.Trajectory
+        trajectory on which partial vhf were calculated form
+    partial_dict : dictionary
+        dictionary containing path to each partial vhf txt file in each user. Key must be pairs listed in alphabetical order
+    atom_list : list, optional, default = None
+        list of unique atoms. if left at default, atom_list generated from trj
+
+
+
+    Return
+    -------
+    total_grt : nump.ndarray
+        Total Van Hove Function generated from addition of partial Van Hove Functions
+    """
+
+    #atom_list generation
+    if atom_list = None:
+        topology = trj.topology
+        atom_list = []
+        for i in range(topology.n_atoms):
+            if topology.atom(i).name not in atom_list:
+                atom_list.append(topology.atom(i).name)
+        atom_list = sorted(set(atom_list))
+
+    norm_factor = 0
+    coeff_list = []
+    combination = list(combinations_with_replacement(atom_list,2))
+    ff = form_factor_from_list(atom_list)
+    mf - atom_conc_from_list(atom_list, trj)
+    for i in range(len(combination)):
+        coeff_list.append(ff[combination[i][0]] * ff[combination[i][1]] * mf[combination[i][0]] * mf[combination[i][1]])
+    for i in range(len(coeff_list):
+            norm_factor = norm_factor + coeff_list[i]
+    total_grt = []
+    for i in range(len(combination)):
+        if len(total_grt) == 0:
+            total_grt = np.loadtxt(partial_dict[f'{combination[i][0]}{combination[i][1]}'])
+            total_grt = total_grt * coeff_list[i] / norm_factor
+        else:
+            x = np.loadtxt(partial_dict[f'{combination[i][0]}{combination[i][1]}'])
+            x = x * coeff_list[i] / norm_factor
+            total_grt = np.add(total_grt, x)
+
+    return total_grt
+
+
+
