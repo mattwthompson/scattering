@@ -220,7 +220,7 @@ def atom_conc_from_list(atom_list, trj):
 
     Parameters
     ----------
-    trj : mdtrj.Trajectory
+    trj : mdtraj.Trajectory
         trajectory on which partial vhf were calculated form
     atom_list : list, optional, default = None
         list of unique atoms. if left at default, atom_list generated from trj
@@ -228,26 +228,20 @@ def atom_conc_from_list(atom_list, trj):
 
     Return
     -------
-    mf : dictionary
+    mf : dict
         dictionary containing concentration of atoms from atom_list
     """
 
     #atom_list generation
     if atom_list = None:
         topology = trj.topology
-        atom_list = []
-        for i in range(topology.n_atoms):
-            if topology.atom(i).name not in atom_list:
-                atom_list.append(topology.atom(i).name)
-        atom_list = sorted(set(atom_list))
+        atoms = [i.element.symbol for i in topology.atoms]
+        atom_list = sorted(set(atoms))
 
-    atom_num_list = []
     mf = {}
+    atom_num_list = []
     for i in range(len(atom_list)):
-        atom_trj = trj.atom_slice(trj.topology.select(f"name {atom_list[i]}"))
-        num_atom = atom_trj.n_atoms
-        atom_num_list.append(num_atom)
-    for i in range(len(atom_num_list)):
+        atom_num_list.append(atoms.count(f"{atom_list[i]}"))
         mf[f'{atom_list[i]}'] = atom_num_list[i]/trj.n_atoms
     return mf
 
@@ -284,7 +278,7 @@ def vhf_from_pvhf(trj, partial_dict,  atom_list = None)
     trj : mdtrj.Trajectory
         trajectory on which partial vhf were calculated form
     partial_dict : dictionary
-        dictionary containing path to each partial vhf txt file in each user. Key must be pairs listed in alphabetical order
+        dictionary containing partial vhf as a np.array. Key must be pairs listed in alphabetical order
     atom_list : list, optional, default = None
         list of unique atoms. if left at default, atom_list generated from trj
 
@@ -297,7 +291,7 @@ def vhf_from_pvhf(trj, partial_dict,  atom_list = None)
     """
 
     #atom_list generation
-    if atom_list = None:
+    if atom_list == None:
         topology = trj.topology
         atom_list = []
         for i in range(topology.n_atoms):
@@ -309,18 +303,18 @@ def vhf_from_pvhf(trj, partial_dict,  atom_list = None)
     coeff_list = []
     combination = list(combinations_with_replacement(atom_list,2))
     ff = form_factor_from_list(atom_list)
-    mf - atom_conc_from_list(atom_list, trj)
-    for i in range(len(combination)):
-        coeff_list.append(ff[combination[i][0]] * ff[combination[i][1]] * mf[combination[i][0]] * mf[combination[i][1]])
-    for i in range(len(coeff_list):
-            norm_factor = norm_factor + coeff_list[i]
+    mf = atom_conc_from_list(atom_list, trj)
+    for pair in combination:
+        coeff = (ff[pair[0]] * ff[pair[1]] * mf[pair[0]] * mf[pair[1]])
+        coeff_list.append(coeff)
+	norm_factor = norm_facotr + coeff
     total_grt = []
     for i in range(len(combination)):
         if len(total_grt) == 0:
-            total_grt = np.loadtxt(partial_dict[f'{combination[i][0]}{combination[i][1]}'])
+            total_grt = partial_dict[f'{combination[i][0]}{combination[i][1]}']
             total_grt = total_grt * coeff_list[i] / norm_factor
         else:
-            x = np.loadtxt(partial_dict[f'{combination[i][0]}{combination[i][1]}'])
+            x = partial_dict[f'{combination[i][0]}{combination[i][1]}']
             x = x * coeff_list[i] / norm_factor
             total_grt = np.add(total_grt, x)
 
