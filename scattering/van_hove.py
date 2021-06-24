@@ -8,7 +8,7 @@ from progressbar import ProgressBar
 
 from scattering.utils.utils import get_dt
 from scattering.utils.constants import get_form_factor
-
+from itertools import combinations_with_replacement
 
 def compute_van_hove(trj, chunk_length, parallel=False, water=False,
                      r_range=(0, 1.0), bin_width=0.005, n_bins=None,
@@ -214,36 +214,40 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
         g_r_t += g_r_t_frame
 
     return r, g_r_t
+
 def atom_conc_from_list(atom_list, trj):
-     """ 
-    Generates a dictionary of atom concentration with the key corresponding to the atoms in atom_list
+	""" 
+    	Generates a dictionary of atom concentration with the key corresponding to the atoms in atom_list
 
-    Parameters
-    ----------
-    trj : mdtraj.Trajectory
-        trajectory on which partial vhf were calculated form
-    atom_list : list, optional, default = None
-        list of unique atoms. if left at default, atom_list generated from trj
+    	Parameters
+    	----------
+    	trj : mdtraj.Trajectory
+        	trajectory on which partial vhf were calculated form
+	atom_list : list, optional, default = None
+        	list of unique atoms. if left at default, atom_list generated from trj
 
 
-    Return
-    -------
-    mf : dict
-        dictionary containing concentration of atoms from atom_list
-    """
+    	Return
+    	-------
+    	mf : dict
+        	dictionary containing concentration of atoms from atom_list
+    	"""
+	
+	topology = trj.topology
+	atoms = [i.element.symbol for i in topology.atoms]
+    	
+	#atom_list generation
+	if atom_list == None:
+		atom_list = sorted(set(atoms))
 
-    #atom_list generation
-    if atom_list = None:
-        topology = trj.topology
-        atoms = [i.element.symbol for i in topology.atoms]
-        atom_list = sorted(set(atoms))
+	mf = {}
+	atom_num_list = []
+    	
+	for i in range(len(atom_list)):
+        	atom_num_list.append(atoms.count(f"{atom_list[i]}"))
+        	mf[f'{atom_list[i]}'] = atom_num_list[i]/trj.n_atoms
 
-    mf = {}
-    atom_num_list = []
-    for i in range(len(atom_list)):
-        atom_num_list.append(atoms.count(f"{atom_list[i]}"))
-        mf[f'{atom_list[i]}'] = atom_num_list[i]/trj.n_atoms
-    return mf
+	return mf
 
 
 def form_factor_from_list(atom_list):
@@ -268,7 +272,7 @@ def form_factor_from_list(atom_list):
     return ff
 
 
-def vhf_from_pvhf(trj, partial_dict,  atom_list = None)
+def vhf_from_pvhf(trj, partial_dict,  atom_list = None):
     """ 
     Compute the total van Hove function from partial van Hove functions
 
@@ -289,15 +293,15 @@ def vhf_from_pvhf(trj, partial_dict,  atom_list = None)
     total_grt : nump.ndarray
         Total Van Hove Function generated from addition of partial Van Hove Functions
     """
-
+    
     #atom_list generation
+
     if atom_list == None:
-        topology = trj.topology
         atom_list = []
         for i in range(topology.n_atoms):
             if topology.atom(i).name not in atom_list:
                 atom_list.append(topology.atom(i).name)
-        atom_list = sorted(set(atom_list))
+            atom_list = sorted(set(atom_list))
 
     norm_factor = 0
     coeff_list = []
@@ -307,16 +311,14 @@ def vhf_from_pvhf(trj, partial_dict,  atom_list = None)
     for pair in combination:
         coeff = (ff[pair[0]] * ff[pair[1]] * mf[pair[0]] * mf[pair[1]])
         coeff_list.append(coeff)
-	norm_factor = norm_facotr + coeff
-    total_grt = []
+        norm_factor = norm_factor + coeff
     for i in range(len(combination)):
-        if len(total_grt) == 0:
-            total_grt = partial_dict[f'{combination[i][0]}{combination[i][1]}']
-            total_grt = total_grt * coeff_list[i] / norm_factor
+        temp_partial = partial_dict[f"{combination[i][0]}{combination[i][1]}"]
+        temp_normalized = temp_partial * coeff_list[i] / norm_factor
+        if i == 0:
+            total_grt = temp_normalized
         else:
-            x = partial_dict[f'{combination[i][0]}{combination[i][1]}']
-            x = x * coeff_list[i] / norm_factor
-            total_grt = np.add(total_grt, x)
+            total_grt = np.add(total_grt, temp_normalized)
 
     return total_grt
 
