@@ -14,7 +14,7 @@ from scattering.utils.constants import get_form_factor
 
 
 
-def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False, weighting_factor='fz'):
+def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False, weighting_factor='fz', isotopes={}, probe="neutron"):
     """Compute the structure factor through a fourier transform of
     the radial distribution function.
 
@@ -40,6 +40,24 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
     weighting_factor : string, optional, default='fz'
          Weighting factor for calculating the structure-factor, default is Faber-Ziman.
         See https://openscholarship.wustl.edu/etd/1358/ and http://isaacs.sourceforge.net/manual/page26_mn.html for details.
+    isotopes: dict, optional, default=None
+        If the scattering experiment was run with specific isotopic compositions (i.e. an NDIS experiment), specify
+        isotopic composition as follows:
+            {
+                element_1.symbol:
+                    {
+                        element_1.atomic_number_1: fraction,
+                        element_1.atomic_number_2: fraction,
+                        ...
+                    },
+                element_2.symbol:
+                    {
+                        ...
+                    },
+                ...
+            }
+        The sum over the fraction for each isotope for each element must be 1.0. An atomic number of -1 signifies
+        no isotopic enrichment, at which point the average scattering length will be pulled.
 
     Returns
     -------
@@ -71,7 +89,7 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
 
     for elem in elements:
         compositions[elem.symbol] = len(top.select('element {}'.format(elem.symbol)))/trj.n_atoms
-        form_factors[elem.symbol] = elem.atomic_number
+        form_factors[elem.symbol] = get_form_factor(elem.atomic_number, isotopes.get(elem.atomic_number, {-1: 1.0}), probe=probe)
 
     for i, q in enumerate(Q):
         num = 0
@@ -110,9 +128,16 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
 
             if weighting_factor == 'fz':
                 pre_factor = 4 * np.pi * rho
-                partial_sq = (integral*pre_factor) + 1
+                # It's an unrestricted double sum, so non-identical pairs need to be counted twice
+                if e1 != e2:
+                    pre_factor *= 2.0
+                partial_sq = (integral*pre_factor)
                 num += (x_a*f_a*x_b*f_b) * (partial_sq)
-        S[i] = (num/(denom**2))
+        # Faber-Ziman comes out in units of barn/sr/atom. 100 is to convert between fm^2 and barn.
+        if weighting_factor == 'fz':
+            S[i] = num/100.0
+        else:
+            S[i] = (num/(denom**2))
     return Q, S
 
 def compute_dynamic_rdf(trj):
@@ -132,12 +157,9 @@ def compute_dynamic_rdf(trj):
         A three-dimensional array of interatomic distances
     """
 
-    n_atoms = trj.n_atoms
-    n_frames = trj.n_frames
-
     r_ij = np.ndarray(shape=(trj.n_atoms, trj.n_atoms, trj.n_frames))
 
-    for n_frame, frame in enumerate(trj):
+    for n_frame, _ in enumerate(trj):
         for atom_i in range(trj.n_atoms):
             for atom_j in range(trj.n_atoms):
                 r_ij[atom_i, atom_j, n_frame] = compute_distance(trj.xyz[n_frame, atom_j], trj.xyz[0, atom_i])
