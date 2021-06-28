@@ -14,13 +14,12 @@ from scattering.utils.constants import get_form_factor
 
 
 
-def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False, weighting_factor='fz'):
+def structure_factor(trj, Q_range=(0.5, 50), n_points=1000,
+        framewise_rdf=False, weighting_factor='fz', form="atomic"):
     """Compute the structure factor through a fourier transform of
     the radial distribution function.
 
     The consdered trajectory must include valid elements.
-
-    Atomic form factors are estimated by atomic number.
 
     The computed structure factor is only valid for certain values of Q. The
     lowest value of Q that can sufficiently be described by a box of
@@ -38,8 +37,12 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
         If True, computes the rdf frame-by-frame. This can be useful for
         managing memory in large systems.
     weighting_factor : string, optional, default='fz'
-         Weighting factor for calculating the structure-factor, default is Faber-Ziman.
+        Weighting factor for calculating the structure-factor, default is Faber-Ziman.
         See https://openscholarship.wustl.edu/etd/1358/ and http://isaacs.sourceforge.net/manual/page26_mn.html for details.
+    form : string, optional, default='atomic'
+        Method for determining form factors. If default, form factors are estimated from
+        atomic numbers.  If 'cromer-mann', form factors are determined from Cromer-Mann
+        tables.
 
     Returns
     -------
@@ -71,21 +74,22 @@ def structure_factor(trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False,
 
     for elem in elements:
         compositions[elem.symbol] = len(top.select('element {}'.format(elem.symbol)))/trj.n_atoms
-        form_factors[elem.symbol] = elem.atomic_number
+        form_factors[elem.symbol] = get_form_factor(elem.symbol, q=Q[0]/10, method=form)
 
     for i, q in enumerate(Q):
         num = 0
         denom = 0
 
         for elem in elements:
-            denom += compositions[elem.symbol] * form_factors[elem.symbol]
+            denom += compositions[elem.symbol] * get_form_factor(elem.symbol,
+                    q=q/10, method=form)
 
         for (elem1, elem2) in it.product(elements, repeat=2):
             e1 = elem1.symbol
             e2 = elem2.symbol
 
-            f_a = form_factors[e1]
-            f_b = form_factors[e2]
+            f_a = get_form_factor(e1, q=q/10, method=form)
+            f_b = get_form_factor(e2, q=q/10, method=form)
 
             x_a = compositions[e1]
             x_b = compositions[e2]
