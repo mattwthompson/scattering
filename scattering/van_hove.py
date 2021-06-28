@@ -216,38 +216,38 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     return r, g_r_t
 
 def atom_conc_from_list(atom_list, trj):
-	""" 
-    	Generates a dictionary of atom concentration with the key corresponding to the atoms in atom_list
+    """ 
+    Generates a dictionary of atom concentration with the key corresponding to the atoms in atom_list
 
-    	Parameters
-    	----------
-    	trj : mdtraj.Trajectory
-        	trajectory on which partial vhf were calculated form
-	atom_list : list, optional, default = None
-        	list of unique atoms. if left at default, atom_list generated from trj
+    Parameters
+    ----------
+    trj : mdtraj.Trajectory
+        trajectory on which partial vhf were calculated form
+    atom_list : list, optional, default = None
+        list of unique atoms. if left at default, atom_list generated from trj
 
 
-    	Return
-    	-------
-    	mf : dict
-        	dictionary containing concentration of atoms from atom_list
-    	"""
-	
-	topology = trj.topology
-	atoms = [i.element.symbol for i in topology.atoms]
-    	
-	#atom_list generation
-	if atom_list == None:
-		atom_list = sorted(set(atoms))
+    Return
+    -------
+    mf : dict
+        dictionary containing concentration of atoms from atom_list
+    """
 
-	mf = {}
-	atom_num_list = []
-    	
-	for i in range(len(atom_list)):
-        	atom_num_list.append(atoms.count(f"{atom_list[i]}"))
-        	mf[f'{atom_list[i]}'] = atom_num_list[i]/trj.n_atoms
+    topology = trj.topology
+    atoms = [i.element.symbol for i in topology.atoms]
+    
+    #atom_list generation
+    if atom_list == None:
+        atom_list = sorted(set(atoms))
 
-	return mf
+    mf = {}
+    atom_num_list = []
+    
+    for i in range(len(atom_list)):
+        atom_num_list.append(atoms.count(f"{atom_list[i]}"))
+        mf[f'{atom_list[i]}'] = atom_num_list[i]/trj.n_atoms
+
+    return mf
 
 
 def form_factor_from_list(atom_list):
@@ -268,11 +268,11 @@ def form_factor_from_list(atom_list):
     
     ff = {}
     for i in range(len(atom_list)):
-            ff[f'{atom_list[i]}'] =  get_form_factor(element_name = f"{atom_list[i]}", water = None)
+            ff[f'{atom_list[i]}'] =  get_form_factor(element_name = f"{atom_list[i]}", water = False)
     return ff
 
 
-def vhf_from_pvhf(trj, partial_dict,  atom_list = None):
+def vhf_from_pvhf(trj, partial_dict):
     """ 
     Compute the total van Hove function from partial van Hove functions
 
@@ -281,46 +281,36 @@ def vhf_from_pvhf(trj, partial_dict,  atom_list = None):
     ----------
     trj : mdtrj.Trajectory
         trajectory on which partial vhf were calculated form
-    partial_dict : dictionary
+    partial_dict : dict
         dictionary containing partial vhf as a np.array. Key must be pairs listed in alphabetical order
-    atom_list : list, optional, default = None
-        list of unique atoms. if left at default, atom_list generated from trj
-
 
 
     Return
     -------
-    total_grt : nump.ndarray
+    total_grt : numpy.ndarray
         Total Van Hove Function generated from addition of partial Van Hove Functions
     """
     
-    #atom_list generation
 
-    if atom_list == None:
-        atom_list = []
-        for i in range(topology.n_atoms):
-            if topology.atom(i).name not in atom_list:
-                atom_list.append(topology.atom(i).name)
-            atom_list = sorted(set(atom_list))
-
-    norm_factor = 0
-    coeff_list = []
+         
     combination = list(combinations_with_replacement(atom_list,2))
-    ff = form_factor_from_list(atom_list)
-    mf = atom_conc_from_list(atom_list, trj)
-    for pair in combination:
-        coeff = (ff[pair[0]] * ff[pair[1]] * mf[pair[0]] * mf[pair[1]])
-        coeff_list.append(coeff)
-        norm_factor = norm_factor + coeff
-    for i in range(len(combination)):
-        temp_partial = partial_dict[f"{combination[i][0]}{combination[i][1]}"]
-        temp_normalized = temp_partial * coeff_list[i] / norm_factor
-        if i == 0:
-            total_grt = temp_normalized
-        else:
-            total_grt = np.add(total_grt, temp_normalized)
+    norm_coeff = 0
+    total_grt = np.zeros(partial_dict[f"{combination[0][0]}{combination[0][1]}"].shape)
 
+    for atoms in partial_dict:
+        coeff = get_form_factor(element_name = f"{atoms[0]}") * \
+        get_form_factor(element_name = f"{atoms[1]}") * \
+        len(trj.topology.select(f"name {atoms[0]}"))/(trj.n_atoms) * \
+        len(trj.topology.select(f"name {atoms[1]}"))/(trj.n_atoms)
+    
+        normalized_pvhf = coeff * partial_dict[atoms]
+        norm_coeff += coeff
+        total_grt = np.add(total_grt, normalized_pvhf)
+
+    total_grt /= norm_coeff
+
+
+    
     return total_grt
-
 
 
