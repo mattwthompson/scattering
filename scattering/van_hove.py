@@ -282,22 +282,32 @@ def vhf_from_pvhf(trj, partial_dict):
     trj : mdtrj.Trajectory
         trajectory on which partial vhf were calculated form
     partial_dict : dict
-        dictionary containing partial vhf as a np.array. Key must be pairs listed in alphabetical order
+        dictionary containing partial vhf as a np.array. key is in the format '{atom}-{atom}'
 
 
     Return
     -------
     total_grt : numpy.ndarray
         Total Van Hove Function generated from addition of partial Van Hove Functions
-    """
-    
+    """    
 
-         
-    combination = list(combinations_with_replacement(atom_list,2))
+
+    topology = trj.topology
+    atoms = [i.element.symbol for i in topology.atoms]
+
     norm_coeff = 0
-    total_grt = np.zeros(partial_dict[f"{combination[0][0]}{combination[0][1]}"].shape)
+    total_grt = np.zeros(partial_dict[f"{atoms[0]}{atoms[0]}"].shape)
 
     for atoms in partial_dict:
+        #checks that dictionary key has two elements only
+        atom_pair_check = atoms.split("-")
+        if len(atom_pair_check) != 2:
+            raise ValueError("Dictionary key not valid. Must be in format {atom}-{atom} ie : C-C ")
+        if "-" not in atoms:
+            raise ValueError("Dictionary key not valid. Must be in format {atom}-{atom}. ie : C-C ")
+        for atom in atom_pair_check:
+            if atom not in atoms:
+                raise ValueError("Dictionary key must be atoms in MDTraj trajectory")
         coeff = get_form_factor(element_name = f"{atoms[0]}") * \
         get_form_factor(element_name = f"{atoms[1]}") * \
         len(trj.topology.select(f"name {atoms[0]}"))/(trj.n_atoms) * \
