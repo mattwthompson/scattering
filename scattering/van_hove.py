@@ -296,24 +296,26 @@ def vhf_from_pvhf(trj, partial_dict):
     atoms = [i.element.symbol for i in topology.atoms]
 
     norm_coeff = 0
-    total_grt = np.zeros(partial_dict[f"{atoms[0]}{atoms[0]}"].shape)
+    total_grt = np.zeros(partial_dict[f"{atoms[0]}-{atoms[0]}"].shape)
 
-    for atoms in partial_dict:
+    for atom_pair in partial_dict.keys():
         #checks that dictionary key has two elements only
-        atom_pair_check = atoms.split("-")
+        atom_pair_check = atom_pair.split("-")
         if len(atom_pair_check) != 2:
             raise ValueError("Dictionary key not valid. Must be in format {atom}-{atom} ie : C-C ")
-        if "-" not in atoms:
-            raise ValueError("Dictionary key not valid. Must be in format {atom}-{atom}. ie : C-C ")
+        #if "-" not in atom_pair:
+        #    raise ValueError("Dictionary key not valid. Must be in format {atom}-{atom}. ie : C-C ")
         for atom in atom_pair_check:
             if atom not in atoms:
                 raise ValueError("Dictionary key must be atoms in MDTraj trajectory")
-        coeff = get_form_factor(element_name = f"{atoms[0]}") * \
-        get_form_factor(element_name = f"{atoms[1]}") * \
-        len(trj.topology.select(f"name {atoms[0]}"))/(trj.n_atoms) * \
-        len(trj.topology.select(f"name {atoms[1]}"))/(trj.n_atoms)
+        atom1 = atom_pair.split("-")[0]
+        atom2 = atom_pair.split("-")[1]
+        coeff = get_form_factor(element_name = f"{atom1}") * \
+        get_form_factor(element_name = f"{atom2}") * \
+        len(trj.topology.select(f"name {atom1}"))/(trj.n_atoms) * \
+        len(trj.topology.select(f"name {atom2}"))/(trj.n_atoms)
     
-        normalized_pvhf = coeff * partial_dict[atoms]
+        normalized_pvhf = coeff * partial_dict[atom_pair]
         norm_coeff += coeff
         total_grt = np.add(total_grt, normalized_pvhf)
 

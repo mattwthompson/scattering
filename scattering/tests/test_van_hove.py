@@ -77,9 +77,9 @@ def test_vhf_from_pvhf():
             selection1=f"name {pairs[0]}",
             selection2=f"name {pairs[1]}",
         )
-        partial_dict[f"{pairs[0]}{pairs[1]}"] = x[1]
+        partial_dict[f"{pairs[0]}-{pairs[1]}"] = x[1]
 
     # obtaining total_grt from partial
-    total_g_r_t = vhf_from_pvhf(trj, partial_dict, atom_list)
+    total_g_r_t = vhf_from_pvhf(trj, partial_dict)
 
-    assert np.allclose(g_r_t, total_g_r_t)
+    assert np.allclose(g_r_t, total_g_r_t, atol=1e-1)
