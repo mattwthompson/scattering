@@ -48,7 +48,10 @@ def compute_van_hove(trj, chunk_length, parallel=False, water=False,
 
     if parallel:
         data = []
-        for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
+        #for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
+        for elems in it.combinations_with_replacement(unique_elements[::-1], 2):
+            elem1 = sorted(elems)[0]
+            elem2 = sorted(elems)[1]
             data.append([
                 trj,
                 chunk_length,
@@ -85,7 +88,9 @@ def compute_van_hove(trj, chunk_length, parallel=False, water=False,
     else:
         partial_dict = dict()
 
-        for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
+        for elems in it.combinations_with_replacement(unique_elements[::-1], 2):
+            elem1 = sorted(elems)[0]
+            elem2 = sorted(elems)[1]
             print('doing {0} and {1} ...'.format(elem1, elem2))
             r, g_r_t_partial = compute_partial_van_hove(trj=trj,
                                                         chunk_length=chunk_length,
@@ -272,7 +277,7 @@ def form_factor_from_list(atom_list):
     return ff
 
 
-def vhf_from_pvhf(trj, partial_dict):
+def vhf_from_pvhf(trj, partial_dict, water=False):
     """ 
     Compute the total van Hove function from partial van Hove functions
 
@@ -304,15 +309,13 @@ def vhf_from_pvhf(trj, partial_dict):
         atom_pair_check = atom_pair.split("-")
         if len(atom_pair_check) != 2:
             raise ValueError("Dictionary key not valid. Must be in format {atom}-{atom} ie : C-C ")
-        #if "-" not in atom_pair:
-        #    raise ValueError("Dictionary key not valid. Must be in format {atom}-{atom}. ie : C-C ")
         for atom in atom_pair_check:
             if atom not in atoms:
                 raise ValueError("Dictionary key must be atoms in MDTraj trajectory")
         atom1 = atom_pair.split("-")[0]
         atom2 = atom_pair.split("-")[1]
-        coeff = get_form_factor(element_name = f"{atom1}") * \
-        get_form_factor(element_name = f"{atom2}") * \
+        coeff = get_form_factor(element_name = f"{atom1}", water=False) * \
+        get_form_factor(element_name = f"{atom2}", water=False) * \
         len(trj.topology.select(f"name {atom1}"))/(trj.n_atoms) * \
         len(trj.topology.select(f"name {atom2}"))/(trj.n_atoms)
     

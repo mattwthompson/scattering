@@ -72,18 +72,20 @@ def test_vhf_from_pvhf():
     partial_dict = {}
     combination = list(combinations_with_replacement(atom_list, 2))
     for pairs in combination:
+        pair1 = sorted(pairs)[0]
+        pair2 = sorted(pairs)[1]
         x = compute_partial_van_hove(
             trj,
             chunk_length=chunk_length,
-            selection1=f"name {pairs[0]}",
-            selection2=f"name {pairs[1]}",
+            selection1=f"name {pair1}",
+            selection2=f"name {pair2}",
         )
-        partial_dict[f"{pairs[0]}-{pairs[1]}"] = x[1]
+        partial_dict[f"{pair1}-{pair2}"] = x[1]
 
     # obtaining total_grt from partial
     total_g_r_t = vhf_from_pvhf(trj, partial_dict)
 
-    assert np.allclose(g_r_t, total_g_r_t, atol=1e-1)
+    assert np.allclose(g_r_t, total_g_r_t)
 
 @pytest.mark.parametrize("partial_string", ["OO", "O;O"])
 def test_pvhf_error(partial_string):
