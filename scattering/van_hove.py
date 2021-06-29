@@ -296,7 +296,8 @@ def vhf_from_pvhf(trj, partial_dict):
     atoms = [i.element.symbol for i in topology.atoms]
 
     norm_coeff = 0
-    total_grt = np.zeros(partial_dict[f"{atoms[0]}-{atoms[0]}"].shape)
+    dict_shape = list(partial_dict.values())[0][0].shape
+    total_grt = np.zeros(dict_shape)
 
     for atom_pair in partial_dict.keys():
         #checks that dictionary key has two elements only
@@ -324,5 +325,3 @@ def vhf_from_pvhf(trj, partial_dict):
 
     
     return total_grt
-
-

@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import mdtraj as md
+import pytest
 
 from scattering.van_hove import compute_van_hove
 from scattering.utils.io import get_fn
@@ -83,3 +84,25 @@ def test_vhf_from_pvhf():
     total_g_r_t = vhf_from_pvhf(trj, partial_dict)
 
     assert np.allclose(g_r_t, total_g_r_t, atol=1e-1)
+
+@pytest.mark.parametrize("partial_string", ["OO", "O;O"])
+def test_pvhf_error(partial_string):
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+
+    topology = trj.topology
+    atoms = [i.element.symbol for i in topology.atoms]
+    atom_list = sorted(set(atoms))
+    chunk_length=20
+
+    # obtating dict of np.array of pvhf
+    partial_dict = {}
+    x = compute_partial_van_hove(
+        trj,
+        chunk_length=chunk_length,
+        selection1=f"name O",
+        selection2=f"name O",
+    )
+    partial_dict[partial_string] = x[1]
+
+    with pytest.raises(ValueError):
+        vhf_from_pvhf(trj, partial_dict)
