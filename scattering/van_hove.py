@@ -220,62 +220,6 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
 
     return r, g_r_t
 
-def atom_conc_from_list(atom_list, trj):
-    """ 
-    Generates a dictionary of atom concentration with the key corresponding to the atoms in atom_list
-
-    Parameters
-    ----------
-    trj : mdtraj.Trajectory
-        trajectory on which partial vhf were calculated form
-    atom_list : list, optional, default = None
-        list of unique atoms. if left at default, atom_list generated from trj
-
-
-    Return
-    -------
-    mf : dict
-        dictionary containing concentration of atoms from atom_list
-    """
-
-    topology = trj.topology
-    atoms = [i.element.symbol for i in topology.atoms]
-    
-    #atom_list generation
-    if atom_list == None:
-        atom_list = sorted(set(atoms))
-
-    mf = {}
-    atom_num_list = []
-    
-    for i in range(len(atom_list)):
-        atom_num_list.append(atoms.count(f"{atom_list[i]}"))
-        mf[f'{atom_list[i]}'] = atom_num_list[i]/trj.n_atoms
-
-    return mf
-
-
-def form_factor_from_list(atom_list):
-    """ 
-    Generates a dictionary of atom form factors with keys corresponding to the atoms in atom_list
-
-    Parameters
-    ----------
-    atom_list : list
-        list of unique atoms
-
-
-    Return
-    -------
-    ff : dictionary
-        dictionary containing form factors of atoms from atom_list
-    """
-    
-    ff = {}
-    for i in range(len(atom_list)):
-            ff[f'{atom_list[i]}'] =  get_form_factor(element_name = f"{atom_list[i]}", water = False)
-    return ff
-
 
 def vhf_from_pvhf(trj, partial_dict, water=False):
     """ 
