@@ -57,7 +57,7 @@ def structure_factor(
         The structure factor of the trajectory
 
     """
-    if weighting_factor not in ["fz", "al",]:
+    if weighting_factor not in ["fz", "al"]:
         raise ValueError(
             "Invalid weighting_factor `{}` is given."
             "  The only weighting_factor currently supported is `fz`.".format(
@@ -119,11 +119,16 @@ def structure_factor(
                 rdfs["{0}{1}".format(e1, e2)] = g_r
             integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
 
+            coefficient = x_a * x_b * f_a * f_b
             pre_factor = 4 * np.pi * rho
-            partial_sq = (integral * pre_factor) + 1
-            num += (x_a * f_a * x_b * f_b) * (partial_sq)
 
-        S[i] = num / (denom**2)
+            partial_sq = (integral * pre_factor)
+            num += coefficient * (partial_sq)
+
+        if weighting_factor == "fz":
+            denom = denom ** 2
+
+        S[i] = num / denom
     return Q, S
 
 
@@ -214,5 +219,5 @@ def _get_normalize(method, c, f):
         denom = c * f
         return denom
     elif method == "al":
-        denom = c * f**2
+        denom = c * (f**2)
         return denom
