@@ -72,7 +72,6 @@ def structure_factor(
     elements = set([a.element for a in top.atoms])
 
     compositions = dict()
-    form_factors = dict()
     rdfs = dict()
 
     Q = np.logspace(np.log10(Q_range[0]), np.log10(Q_range[1]), num=n_points)
@@ -82,9 +81,6 @@ def structure_factor(
         compositions[elem.symbol] = (
             len(top.select("element {}".format(elem.symbol))) / trj.n_atoms
         )
-        form_factors[elem.symbol] = get_form_factor(
-            elem.symbol, q=Q[0] / 10, method=form
-        )
 
     for i, q in enumerate(Q):
         num = 0
@@ -93,14 +89,14 @@ def structure_factor(
         for elem in elements:
             denom += _get_normalize(method=weighting_factor,
                     c=compositions[elem.symbol],
-                    f=form_factors[elem.symbol])
+                    f=get_form_factor(elem.symbol, q=q/10, method=form))
 
         for (elem1, elem2) in it.product(elements, repeat=2):
             e1 = elem1.symbol
             e2 = elem2.symbol
 
-            f_a = form_factors[e1] 
-            f_b = form_factors[e2] 
+            f_a = get_form_factor(e1, q=q/10, method=form) 
+            f_b = get_form_factor(e2, q=q/10, method=form) 
 
             x_a = compositions[e1]
             x_b = compositions[e2]
@@ -215,6 +211,8 @@ def compute_rdf_from_partial(trj, r_range=None):
 def _get_normalize(method, c, f):
     """Get normalization factor"""
     if method == "fz":
-        return (c * f)#**2 
+        denom = c * f
+        return denom
     elif method == "al":
-        return c * f ** 2
+        denom = c * f**2
+        return denom
