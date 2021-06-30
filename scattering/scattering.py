@@ -14,14 +14,17 @@ from scattering.utils.constants import get_form_factor
 
 
 def structure_factor(
-    trj, Q_range=(0.5, 50), n_points=1000, framewise_rdf=False, weighting_factor="fz"
+    trj,
+    Q_range=(0.5, 50),
+    n_points=1000,
+    framewise_rdf=False,
+    weighting_factor="fz",
+    form="atomic",
 ):
     """Compute the structure factor through a fourier transform of
     the radial distribution function.
 
     The consdered trajectory must include valid elements.
-
-    Atomic form factors are estimated by atomic number.
 
     The computed structure factor is only valid for certain values of Q. The
     lowest value of Q that can sufficiently be described by a box of
@@ -38,9 +41,13 @@ def structure_factor(
     framewise_rdf : boolean, default=False
         If True, computes the rdf frame-by-frame. This can be useful for
         managing memory in large systems.
-    weighting_factor : string, optional, default='fz', other='al'
-         Weighting factor for calculating the structure-factor, default is Faber-Ziman, other option is Ashcroft-Langreth.
+    weighting_factor : string, optional, default='fz'
+        Weighting factor for calculating the structure-factor, default is Faber-Ziman.
         See https://openscholarship.wustl.edu/etd/1358/ and http://isaacs.sourceforge.net/manual/page26_mn.html for details.
+    form : string, optional, default='atomic'
+        Method for determining form factors. If default, form factors are estimated from
+        atomic numbers.  If 'cromer-mann', form factors are determined from Cromer-Mann
+        tables.
 
     Returns
     -------
@@ -50,7 +57,7 @@ def structure_factor(
         The structure factor of the trajectory
 
     """
-    if weighting_factor not in ["fz"]:
+    if weighting_factor not in ["fz", "al",]:
         raise ValueError(
             "Invalid weighting_factor `{}` is given."
             "  The only weighting_factor currently supported is `fz`.".format(
@@ -75,26 +82,25 @@ def structure_factor(
         compositions[elem.symbol] = (
             len(top.select("element {}".format(elem.symbol))) / trj.n_atoms
         )
-        form_factors[elem.symbol] = elem.atomic_number
+        form_factors[elem.symbol] = get_form_factor(
+            elem.symbol, q=Q[0] / 10, method=form
+        )
 
     for i, q in enumerate(Q):
         num = 0
         denom = 0
 
-        for (elem1, elem2) in it.product(elements, repeat=2):
-            denom += _get_normalize(
-                weighting_factor,
-                compositions[elem1.symbol],
-                form_factors[elem1.symbol],
-                compositions[elem2.symbol],
-                form_factors[elem2.symbol],
-            )
+        for elem in elements:
+            denom += _get_normalize(method=weighting_factor,
+                    c=compositions[elem.symbol],
+                    f=form_factors[elem.symbol])
 
+        for (elem1, elem2) in it.product(elements, repeat=2):
             e1 = elem1.symbol
             e2 = elem2.symbol
 
-            f_a = form_factors[e1]
-            f_b = form_factors[e2]
+            f_a = form_factors[e1] 
+            f_b = form_factors[e2] 
 
             x_a = compositions[e1]
             x_b = compositions[e2]
@@ -121,8 +127,7 @@ def structure_factor(
             partial_sq = (integral * pre_factor) + 1
             num += (x_a * f_a * x_b * f_b) * (partial_sq)
 
-        S[i] = num / denom
-
+        S[i] = num / (denom**2)
     return Q, S
 
 
@@ -207,10 +212,9 @@ def compute_rdf_from_partial(trj, r_range=None):
     return r, total
 
 
-def _get_normalize(method, c_a, f_a, c_b, f_b):
+def _get_normalize(method, c, f):
     """Get normalization factor"""
     if method == "fz":
-        return (c_a * f_a + c_b * f_b) ** 2
-
+        return (c * f)#**2 
     elif method == "al":
-        return c_a * f_a ** 2 + c_b * f_b ** 2
+        return c * f ** 2
