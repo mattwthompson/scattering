@@ -21,6 +21,8 @@ def get_form_factor(element_name=None, q=None, method="atomic", water=None):
         form_factor = elem.atomic_number
     elif method == "cromer-mann":
         form_factor = cromermann.fxrayatq(elem.symbol, q)
+    else:
+        raise ValueError(f"Invalid method {method}.  Use `atomic` or `cromer-mann`.")
     return form_factor if form_factor > 0 else 1
 
 def get_form_factor_water(element_name=None):
