@@ -126,8 +126,8 @@ def run_partial_vhf(trj, chunk_length, selection1, selection2, n_chunks, water=T
         print(f"Analyzing frames {start} to {end}...")
         r, g_r_t = compute_partial_van_hove(trj=chunk,
                                        chunk_length=frames_in_chunk,
-                                       selection1='element {}'.format(selection1),
-                                       selection2='element {}'.format(selection2),
+                                       selection1=selection1,
+                                       selection2=selection2,
                                        r_range=r_range,
                                        bin_width=bin_width,
                                        n_bins=n_bins,
