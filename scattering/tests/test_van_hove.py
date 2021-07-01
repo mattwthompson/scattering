@@ -50,7 +50,7 @@ def test_van_hove_equal():
     assert np.allclose(g_r_t_p, g_r_t_s)
 
 
-def test_self_warning():
+def test_self_partial_warning():
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
 
     chunk_length = 2
@@ -61,5 +61,18 @@ def test_self_warning():
             chunk_length=chunk_length,
             selection1="name O",
             selection2="name H",
+            self_correlation=True,
+        )
+
+
+def test_self_warning():
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+
+    chunk_length = 2
+
+    with pytest.warns(UserWarning):
+        compute_van_hove(
+            trj,
+            chunk_length=chunk_length,
             self_correlation=True,
         )
