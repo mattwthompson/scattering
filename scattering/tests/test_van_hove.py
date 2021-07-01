@@ -55,7 +55,7 @@ def test_self_partial_warning():
 
     chunk_length = 2
 
-    with pytest.warns(UserWarning):
+    with pytest.warns(UserWarning, match=r"Partial VHF"):
         compute_partial_van_hove(
             trj,
             chunk_length=chunk_length,
@@ -65,14 +65,16 @@ def test_self_partial_warning():
         )
 
 
-def test_self_warning():
+@pytest.mark.parametrize("parallel", [True, False])
+def test_self_warning(parallel):
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
 
     chunk_length = 2
 
-    with pytest.warns(UserWarning):
+    with pytest.warns(UserWarning, match=r"Total VHF"):
         compute_van_hove(
             trj,
             chunk_length=chunk_length,
             self_correlation=True,
+            parallel=parallel,
         )
