@@ -1,5 +1,6 @@
 import multiprocessing
 import sys
+import warnings
 import itertools as it
 
 import numpy as np
@@ -10,9 +11,20 @@ from scattering.utils.utils import get_dt
 from scattering.utils.constants import get_form_factor
 
 
-def compute_van_hove(trj, chunk_length, parallel=False, water=False,
-                     r_range=(0, 1.0), bin_width=0.005, n_bins=None,
-                     self_correlation=True, periodic=True, opt=True, partial=False):
+def compute_van_hove(
+    trj,
+    chunk_length,
+    parallel=False,
+    water=False,
+    r_range=(0, 1.0),
+    bin_width=0.005,
+    n_bins=None,
+    self_correlation=True,
+    periodic=True,
+    opt=True,
+    partial=False,
+    form="atomic",
+):
     """Compute the partial van Hove function of a trajectory
 
     Parameters
@@ -34,6 +46,8 @@ def compute_van_hove(trj, chunk_length, parallel=False, water=False,
          parameter.
     self_correlation : bool, default=True
         Whether or not to include the self-self correlations
+    form : str, default="atomic"
+        Method for determining atomic form factor, default is using the atomic number of each element
 
     Returns
     -------
@@ -42,25 +56,34 @@ def compute_van_hove(trj, chunk_length, parallel=False, water=False,
     g_r_t : numpy.ndarray
         Van Hove function at each time and position
     """
+    # Sanity checks
+    if water == True and form == "cromer-mann":
+        warnings.warn(
+            "Because `form='cromer-mann'`, calculating form factors from Cromer-Mann tables rather than using specific water form factors."
+        )
 
     n_physical_atoms = len([a for a in trj.top.atoms if a.element.mass > 0])
-    unique_elements = list(set([a.element for a in trj.top.atoms if a.element.mass > 0]))
+    unique_elements = list(
+        set([a.element for a in trj.top.atoms if a.element.mass > 0])
+    )
 
     if parallel:
         data = []
         for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
-            data.append([
-                trj,
-                chunk_length,
-                'element {}'.format(elem1.symbol),
-                'element {}'.format(elem2.symbol),
-                r_range,
-                bin_width,
-                n_bins,
-                self_correlation,
-                periodic,
-                opt,
-            ])
+            data.append(
+                [
+                    trj,
+                    chunk_length,
+                    "element {}".format(elem1.symbol),
+                    "element {}".format(elem2.symbol),
+                    r_range,
+                    bin_width,
+                    n_bins,
+                    self_correlation,
+                    periodic,
+                    opt,
+                ]
+            )
 
         manager = multiprocessing.Manager()
         partial_dict = manager.dict()
@@ -77,27 +100,31 @@ def compute_van_hove(trj, chunk_length, parallel=False, water=False,
                 p.start()
 
         for proc in jobs:
-                proc.join()
+            proc.join()
 
-        r = partial_dict['r']
-        del partial_dict['r']
+        r = partial_dict["r"]
+        del partial_dict["r"]
 
     else:
         partial_dict = dict()
 
         for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
-            print('doing {0} and {1} ...'.format(elem1, elem2))
-            r, g_r_t_partial = compute_partial_van_hove(trj=trj,
-                                                        chunk_length=chunk_length,
-                                                        selection1='element {}'.format(elem1.symbol),
-                                                        selection2='element {}'.format(elem2.symbol),
-                                                        r_range=r_range,
-                                                        bin_width=bin_width,
-                                                        n_bins=n_bins,
-                                                        self_correlation=self_correlation,
-                                                        periodic=periodic,
-                                                        opt=opt)
-            partial_dict[('element {}'.format(elem1.symbol), 'element {}'.format(elem2.symbol))] = g_r_t_partial
+            print("doing {0} and {1} ...".format(elem1, elem2))
+            r, g_r_t_partial = compute_partial_van_hove(
+                trj=trj,
+                chunk_length=chunk_length,
+                selection1="element {}".format(elem1.symbol),
+                selection2="element {}".format(elem2.symbol),
+                r_range=r_range,
+                bin_width=bin_width,
+                n_bins=n_bins,
+                self_correlation=self_correlation,
+                periodic=periodic,
+                opt=opt,
+            )
+            partial_dict[
+                ("element {}".format(elem1.symbol), "element {}".format(elem2.symbol))
+            ] = g_r_t_partial
 
     if partial:
         return partial_dict
@@ -107,10 +134,27 @@ def compute_van_hove(trj, chunk_length, parallel=False, water=False,
 
     for key, val in partial_dict.items():
         elem1, elem2 = key
-        concentration1 = trj.atom_slice(trj.top.select(elem1)).n_atoms / n_physical_atoms
-        concentration2 = trj.atom_slice(trj.top.select(elem2)).n_atoms / n_physical_atoms
-        form_factor1 = get_form_factor(element_name=elem1.split()[1], water=water)
-        form_factor2 = get_form_factor(element_name=elem2.split()[1], water=water)
+        concentration1 = (
+            trj.atom_slice(trj.top.select(elem1)).n_atoms / n_physical_atoms
+        )
+        concentration2 = (
+            trj.atom_slice(trj.top.select(elem2)).n_atoms / n_physical_atoms
+        )
+        if form == "atomic":
+            form_factor1 = get_form_factor(element_name=elem1.split()[1], water=water)
+            form_factor2 = get_form_factor(element_name=elem2.split()[1], water=water)
+        elif form == "cromer-mann":
+            form_factor1 = np.zeros(shape=r.shape)
+            form_factor2 = np.zeros(shape=r.shape)
+            for i, distance in enumerate(r):
+                ff1_atr = get_form_factor(
+                    element_name=elem1.split()[1], q=1 / distance, method=form
+                )
+                ff2_atr = get_form_factor(
+                    element_name=elem2.split()[1], q=1 / distance, method=form
+                )
+                form_factor1[i] = ff1_atr
+                form_factor2[i] = ff2_atr
 
         coeff = form_factor1 * concentration1 * form_factor2 * concentration2
         if g_r_t is None:
@@ -135,12 +179,21 @@ def worker(return_dict, data):
     key = (data[2], data[3])
     r, g_r_t_partial = compute_partial_van_hove(*data)
     return_dict[key] = g_r_t_partial
-    return_dict['r'] = r
+    return_dict["r"] = r
 
 
-def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=None,
-                             r_range=(0, 1.0), bin_width=0.005, n_bins=200,
-                             self_correlation=True, periodic=True, opt=True):
+def compute_partial_van_hove(
+    trj,
+    chunk_length=10,
+    selection1=None,
+    selection2=None,
+    r_range=(0, 1.0),
+    bin_width=0.005,
+    n_bins=200,
+    self_correlation=True,
+    periodic=True,
+    opt=True,
+):
     """Compute the partial van Hove function of a trajectory
 
     Parameters
@@ -178,8 +231,8 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
 
     if any([len(val) > 1 for val in unique_elements]):
         raise UserWarning(
-            'Multiple elements found in a selection(s). Results may not be '
-            'direcitly comprable to scattering experiments.'
+            "Multiple elements found in a selection(s). Results may not be "
+            "direcitly comprable to scattering experiments."
         )
 
     # Don't need to store it, but this serves to check that dt is constant
@@ -195,7 +248,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     for i in pbar(range(n_chunks)):
         times = list()
         for j in range(chunk_length):
-            times.append([chunk_length*i, chunk_length*i+j])
+            times.append([chunk_length * i, chunk_length * i + j])
         r, g_r_t_frame = md.compute_rdf_t(
             traj=trj,
             pairs=pairs,

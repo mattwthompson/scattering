@@ -1,19 +1,19 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import mdtraj as md
+import pytest
 
 from scattering.van_hove import compute_van_hove
 from scattering.utils.io import get_fn
 
-def test_van_hove():
-    trj = md.load(
-        get_fn('spce.xtc'),
-        top=get_fn('spce.gro')
-    )
+
+@pytest.mark.parametrize("form", ["atomic", "cromer-mann"])
+def test_van_hove(form):
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
 
     chunk_length = 2
 
-    r, t, g_r_t = compute_van_hove(trj, chunk_length=chunk_length)
+    r, t, g_r_t = compute_van_hove(trj, chunk_length=chunk_length, form=form)
 
     assert len(t) == 2
     assert len(r) == 200
@@ -24,26 +24,22 @@ def test_van_hove():
 
     fig, ax = plt.subplots()
     for i in range(len(t)):
-        ax.plot(r, g_r_t[i], '.-', label=t[i])
+        ax.plot(r, g_r_t[i], ".-", label=t[i])
     ax.set_ylim((0, 3))
     ax.legend()
-    fig.savefig('vhf.pdf')
+    fig.savefig("vhf.pdf")
+
 
 def test_serial_van_hove():
-    trj = md.load(
-        get_fn('spce.xtc'),
-        top=get_fn('spce.gro')
-    )
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
 
     chunk_length = 2
 
     r, t, g_r_t = compute_van_hove(trj, chunk_length=chunk_length, parallel=False)
 
+
 def test_van_hove_equal():
-    trj = md.load(
-        get_fn('spce.xtc'),
-        top=get_fn('spce.gro')
-    )
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
 
     chunk_length = 2
 

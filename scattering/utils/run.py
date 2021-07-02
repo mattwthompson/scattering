@@ -7,7 +7,7 @@ from scattering.utils.features import find_local_maxima
 
 def run_total_vhf(trj, chunk_length, n_chunks, step=1, parallel=False, water=True,
                      r_range=(0, 1.0), bin_width=0.005, n_bins=None,
-                     self_correlation=True, periodic=True, opt=True, partial=False):
+                     self_correlation=True, periodic=True, opt=True, partial=False, form="atomic"):
     """ Run `calculate_van_hove` for specific number of number of chunks
         and chunk_length
 
@@ -34,6 +34,8 @@ def run_total_vhf(trj, chunk_length, n_chunks, step=1, parallel=False, water=Tru
          parameter.
     self_correlation : bool, default=True
         Whether or not to include the self-self correlations
+    form : str, default="atomic"
+        Method for determining atomic form factor, default is using the atomic number of each element
 
     Return
     ------
@@ -65,7 +67,8 @@ def run_total_vhf(trj, chunk_length, n_chunks, step=1, parallel=False, water=Tru
                                        self_correlation=self_correlation,
                                        periodic=periodic,
                                        opt=opt,
-                                       partial=partial,)
+                                       partial=partial,
+                                       form=form,)
       
         vhf_list.append(g_r_t)
 
