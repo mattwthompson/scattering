@@ -242,7 +242,7 @@ def vhf_from_pvhf(trj, partial_dict, water=False):
 
 
     topology = trj.topology
-    atoms = [i.element.symbol for i in topology.atoms]
+    atoms = [i.name for i in topology.atoms]
 
     norm_coeff = 0
     dict_shape = list(partial_dict.values())[0][0].shape
