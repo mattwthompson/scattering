@@ -7,8 +7,6 @@ from scattering.van_hove import compute_van_hove
 from scattering.utils.io import get_fn
 from scattering.van_hove import compute_partial_van_hove
 from scattering.van_hove import vhf_from_pvhf
-from scattering.van_hove import atom_conc_from_list
-from scattering.van_hove import form_factor_from_list
 from itertools import combinations_with_replacement
 from scattering.utils.constants import get_form_factor
 
@@ -86,8 +84,10 @@ def test_vhf_from_pvhf():
     total_g_r_t = vhf_from_pvhf(trj, partial_dict)
 
     assert np.allclose(g_r_t, total_g_r_t)
-
-@pytest.mark.parametrize("partial_string", ["OO", "O;O"])
+    
+    
+    
+@pytest.mark.parametrize("partial_string", ["OO","HH", "O-OO", "O;O", "OOO", "CO", "O-O-O"])
 def test_pvhf_error(partial_string):
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
 
