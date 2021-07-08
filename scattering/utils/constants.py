@@ -1,9 +1,13 @@
 import warnings
 
 from mdtraj.core.element import Element
+from periodictable import cromermann
 
 
-def get_form_factor(element_name=None, water=None):
+def get_form_factor(element_name=None, q=None, method="atomic", water=None):
+    """Get form factor for elements"""
+    if method == "cromer-mann" and q is None:
+        raise ValueError("q must be a non-null value when method='cromer-mann'")
 
     if water:
         return get_form_factor_water(element_name=element_name)
@@ -12,8 +16,13 @@ def get_form_factor(element_name=None, water=None):
         elem = Element.getBySymbol(element_name)
 
     warnings.warn('Estimating atomic form factor as atomic number')
-
-    form_factor = elem.atomic_number
+    
+    if method == "atomic":
+        form_factor = elem.atomic_number
+    elif method == "cromer-mann":
+        form_factor = cromermann.fxrayatq(elem.symbol, q)
+    else:
+        raise ValueError(f"Invalid method {method}.  Use `atomic` or `cromer-mann`.")
     return form_factor if form_factor > 0 else 1
 
 def get_form_factor_water(element_name=None):
