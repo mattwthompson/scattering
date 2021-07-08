@@ -9,7 +9,7 @@ from scattering.van_hove import compute_partial_van_hove
 from scattering.van_hove import vhf_from_pvhf
 from itertools import combinations_with_replacement
 from scattering.utils.constants import get_form_factor
-
+from scattering.van_hove import get_unique_atoms
 
 
 def test_van_hove():
@@ -57,10 +57,8 @@ def test_van_hove_equal():
 
 def test_vhf_from_pvhf():
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
-
-    topology = trj.topology
-    atoms = [i.element.symbol for i in topology.atoms]
-    atom_list = sorted(set(atoms))
+    unique_atoms = get_unique_atoms(trj)
+    tuples_combination = combinations_with_replacement(unique_atoms, 2)
 
     # obtaining g_r_t from total func
     chunk_length = 20
@@ -68,33 +66,41 @@ def test_vhf_from_pvhf():
 
     # obtating dict of np.array of pvhf
     partial_dict = {}
-    combination = list(combinations_with_replacement(atom_list, 2))
-    for pairs in combination:
-        pair1 = sorted(pairs)[0]
-        pair2 = sorted(pairs)[1]
+
+    for pairs in tuples_combination:
+        pair1 = pairs[0]
+        pair2 = pairs[1]
+        if pairs[0].name > pairs[1].name:
+            pair2 = pairs[0]
+            pair1 = pairs[1]
+       
         x = compute_partial_van_hove(
             trj,
             chunk_length=chunk_length,
-            selection1=f"name {pair1}",
-            selection2=f"name {pair2}",
+            selection1=f"name {pair1.name}",
+            selection2=f"name {pair2.name}",
         )
-        partial_dict[f"{pair1}-{pair2}"] = x[1]
+        partial_dict[pairs] = x[1]
 
     # obtaining total_grt from partial
     total_g_r_t = vhf_from_pvhf(trj, partial_dict)
 
     assert np.allclose(g_r_t, total_g_r_t)
-    
-    
-    
-@pytest.mark.parametrize("partial_string", ["OO","HH", "O-OO", "O;O", "OOO", "CO", "O-O-O"])
-def test_pvhf_error(partial_string):
+
+trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+unique_atoms = get_unique_atoms(trj)
+atom = md.core.topology.Atom(name="Na", element=md.core.element.sodium, index=0, residue=1)
+
+@pytest.mark.parametrize(
+    "tuple_keys", [(unique_atoms[0], unique_atoms[1], unique_atoms[1]), ("H","O"),("H-O"),"HO", (atom, unique_atoms[0])]
+)
+def test_pvhf_error(tuple_keys):
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
 
     topology = trj.topology
     atoms = [i.element.symbol for i in topology.atoms]
     atom_list = sorted(set(atoms))
-    chunk_length=20
+    chunk_length = 20
 
     # obtating dict of np.array of pvhf
     partial_dict = {}
@@ -104,7 +110,8 @@ def test_pvhf_error(partial_string):
         selection1=f"name O",
         selection2=f"name O",
     )
-    partial_dict[partial_string] = x[1]
+    partial_dict[tuple_keys] = x[1]
 
     with pytest.raises(ValueError):
         vhf_from_pvhf(trj, partial_dict)
+
