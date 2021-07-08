@@ -206,7 +206,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     else:
         result_dict = dict()
         for start in chunk_starts:
-            print("Here!")
+            
             worker(
                 trj[start:start+chunk_length], 
                 pairs,
