@@ -1,6 +1,7 @@
 import multiprocessing
 import sys
 import itertools as it
+import warnings
 
 import numpy as np
 import mdtraj as md
@@ -10,8 +11,8 @@ from scattering.utils.utils import get_dt
 from scattering.utils.constants import get_form_factor
 
 
-def compute_van_hove(trj, chunk_length, parallel=False, water=False,
-                     r_range=(0, 1.0), bin_width=0.005, n_bins=None,
+def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_count=None,
+                     water=False, r_range=(0, 1.0), bin_width=0.005, n_bins=None,
                      self_correlation=True, periodic=True, opt=True, partial=False):
     """Compute the partial van Hove function of a trajectory
 
@@ -46,58 +47,36 @@ def compute_van_hove(trj, chunk_length, parallel=False, water=False,
     n_physical_atoms = len([a for a in trj.top.atoms if a.element.mass > 0])
     unique_elements = list(set([a.element for a in trj.top.atoms if a.element.mass > 0]))
 
-    if parallel:
-        data = []
-        for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
-            data.append([
-                trj,
-                chunk_length,
-                'element {}'.format(elem1.symbol),
-                'element {}'.format(elem2.symbol),
-                r_range,
-                bin_width,
-                n_bins,
-                self_correlation,
-                periodic,
-                opt,
-            ])
+    partial_dict = dict()
 
-        manager = multiprocessing.Manager()
-        partial_dict = manager.dict()
-        jobs = []
-        version_info = sys.version_info
-        for d in data:
-            with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
-                if version_info.major == 3 and version_info.minor <= 7:
-                    p = pool.Process(target=worker, args=(partial_dict, d))
-                elif version_info.major == 3 and version_info.minor >= 8:
-                    ctx = multiprocessing.get_context()
-                    p = pool.Process(ctx, target=worker, args=(partial_dict, d))
-                jobs.append(p)
-                p.start()
+    for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
 
-        for proc in jobs:
-                proc.join()
+        # Add a bool to check if self-correlations should be analyzed
+        self_bool = self_correlation
+        if elem1 != elem2 and self_correlation:
+            self_bool = False
+            warnings.warn(
+                "Total VHF calculation: No self-correlations for {} and {}, setting `self_correlation` to `False`.".format(
+                    elem1, elem2
+                )
+            )
 
-        r = partial_dict['r']
-        del partial_dict['r']
-
-    else:
-        partial_dict = dict()
-
-        for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
-            print('doing {0} and {1} ...'.format(elem1, elem2))
-            r, g_r_t_partial = compute_partial_van_hove(trj=trj,
-                                                        chunk_length=chunk_length,
-                                                        selection1='element {}'.format(elem1.symbol),
-                                                        selection2='element {}'.format(elem2.symbol),
-                                                        r_range=r_range,
-                                                        bin_width=bin_width,
-                                                        n_bins=n_bins,
-                                                        self_correlation=self_correlation,
-                                                        periodic=periodic,
-                                                        opt=opt)
-            partial_dict[('element {}'.format(elem1.symbol), 'element {}'.format(elem2.symbol))] = g_r_t_partial
+        print('doing {0} and {1} ...'.format(elem1, elem2))
+        r, g_r_t_partial = compute_partial_van_hove(trj=trj,
+                                                    chunk_length=chunk_length,
+                                                    selection1='element {}'.format(elem1.symbol),
+                                                    selection2='element {}'.format(elem2.symbol),
+                                                    chunk_starts=chunk_starts,
+                                                    cpu_count=cpu_count,
+                                                    r_range=r_range,
+                                                    bin_width=bin_width,
+                                                    n_bins=n_bins,
+                                                    self_correlation=self_bool,
+                                                    periodic=periodic,
+                                                    opt=opt,
+                                                    parallel=parallel,
+                                                    )
+        partial_dict[('element {}'.format(elem1.symbol), 'element {}'.format(elem2.symbol))] = g_r_t_partial
 
     if partial:
         return partial_dict
@@ -131,16 +110,9 @@ def compute_van_hove(trj, chunk_length, parallel=False, water=False,
     return r, t, g_r_t_final
 
 
-def worker(return_dict, data):
-    key = (data[2], data[3])
-    r, g_r_t_partial = compute_partial_van_hove(*data)
-    return_dict[key] = g_r_t_partial
-    return_dict['r'] = r
-
-
 def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=None,
-                             r_range=(0, 1.0), bin_width=0.005, n_bins=200,
-                             self_correlation=True, periodic=True, opt=True):
+                             chunk_starts=None, cpu_count=None, r_range=(0, 1.0), bin_width=0.005, 
+                             n_bins=200, self_correlation=True, periodic=True, opt=True, parallel=True):
     """Compute the partial van Hove function of a trajectory
 
     Parameters
@@ -162,6 +134,8 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
          parameter.
     self_correlation : bool, default=True
         Whether or not to include the self-self correlations
+    parallel : bool, default=True
+        Use parallel implementation with `multiprocessing`
 
     Returns
     -------
@@ -181,36 +155,109 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
             'Multiple elements found in a selection(s). Results may not be '
             'direcitly comprable to scattering experiments.'
         )
+    
+    # Check if pair is monatomic
+    # If not, do not calculate self correlations
+    if selection1 != selection2 and self_correlation:
+        warnings.warn(
+            "Partial VHF calculation: No self-correlations for {} and {}, setting `self_correlation` to `False`.".format(
+                selection1, selection2
+                )
+        )
+        self_correlation = False
 
     # Don't need to store it, but this serves to check that dt is constant
     dt = get_dt(trj)
 
     pairs = trj.top.select_pairs(selection1=selection1, selection2=selection2)
+    
+    if chunk_starts is None:
+        chunk_starts = []
+        for i in range(trj.n_frames//chunk_length):
+            chunk_starts.append(i*chunk_length)
+        
+    if parallel:
+        if cpu_count == None:    
+            cpu_count = multiprocessing.cpu_count()
+        pool = multiprocessing.Pool(processes = cpu_count, maxtasksperchild = 1)
+        manager = multiprocessing.Manager()
+        result_dict = manager.dict()
 
-    n_chunks = int(trj.n_frames / chunk_length)
+        data = []
+        for start in chunk_starts:
+            data.append([ 
+                trj[start:start+chunk_length], 
+                pairs,
+                start,
+                result_dict, 
+                chunk_length, 
+                r_range, 
+                bin_width, 
+                n_bins, 
+                self_correlation, 
+                periodic, 
+                opt, 
+            ]) 
+
+        pool.starmap(worker,data)
+        pool.close()
+        pool.join()
+    
+    else:
+        result_dict = dict()
+        for start in chunk_starts:
+            print("Here!")
+            worker(
+                trj[start:start+chunk_length], 
+                pairs,
+                start,
+                result_dict, 
+                chunk_length, 
+                r_range, 
+                bin_width, 
+                n_bins, 
+                self_correlation, 
+                periodic, 
+                opt, 
+            ) 
+            
+            
+
+    r = result_dict["r"]
+    del result_dict["r"]
 
     g_r_t = None
-    pbar = ProgressBar()
 
-    for i in pbar(range(n_chunks)):
-        times = list()
-        for j in range(chunk_length):
-            times.append([chunk_length*i, chunk_length*i+j])
-        r, g_r_t_frame = md.compute_rdf_t(
-            traj=trj,
-            pairs=pairs,
-            times=times,
-            r_range=r_range,
-            bin_width=bin_width,
-            n_bins=n_bins,
-            period_length=chunk_length,
-            self_correlation=self_correlation,
-            periodic=periodic,
-            opt=opt,
-        )
-
+    for key, val in result_dict.items():
         if g_r_t is None:
-            g_r_t = np.zeros_like(g_r_t_frame)
-        g_r_t += g_r_t_frame
+            g_r_t = np.zeros_like(val)
+        g_r_t += val
+
+    g_r_t /= len(chunk_starts)
 
     return r, g_r_t
+
+def worker(trj, pairs, start_time, result_dict, chunk_length=10, 
+           r_range=(0, 1.0), bin_width=0.005, n_bins=200, 
+           self_correlation=True, periodic=True, opt=True):
+    times = list()
+    for j in range(chunk_length):
+        times.append([0,j])
+
+    r, g_r_t_frame = md.compute_rdf_t(
+        traj=trj,
+        pairs=pairs,
+        times=times,
+        r_range=r_range,
+        bin_width=bin_width,
+        n_bins=n_bins,
+        period_length=chunk_length,
+        self_correlation=self_correlation,
+        periodic=periodic,
+        opt=opt,
+    )
+    
+    result_dict[start_time] = g_r_t_frame
+    result_dict["r"] = r
+
+    return
