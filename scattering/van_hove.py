@@ -1,6 +1,7 @@
 import multiprocessing
 import sys
 import itertools as it
+import warnings
 
 import numpy as np
 import mdtraj as md
@@ -10,9 +11,19 @@ from scattering.utils.utils import get_dt
 from scattering.utils.constants import get_form_factor
 
 
-def compute_van_hove(trj, chunk_length, parallel=False, water=False,
-                     r_range=(0, 1.0), bin_width=0.005, n_bins=None,
-                     self_correlation=True, periodic=True, opt=True, partial=False):
+def compute_van_hove(
+    trj,
+    chunk_length,
+    parallel=False,
+    water=False,
+    r_range=(0, 1.0),
+    bin_width=0.005,
+    n_bins=None,
+    self_correlation=True,
+    periodic=True,
+    opt=True,
+    partial=False,
+):
     """Compute the partial van Hove function of a trajectory
 
     Parameters
@@ -44,23 +55,37 @@ def compute_van_hove(trj, chunk_length, parallel=False, water=False,
     """
 
     n_physical_atoms = len([a for a in trj.top.atoms if a.element.mass > 0])
-    unique_elements = list(set([a.element for a in trj.top.atoms if a.element.mass > 0]))
+    unique_elements = list(
+        set([a.element for a in trj.top.atoms if a.element.mass > 0])
+    )
 
     if parallel:
         data = []
         for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
-            data.append([
-                trj,
-                chunk_length,
-                'element {}'.format(elem1.symbol),
-                'element {}'.format(elem2.symbol),
-                r_range,
-                bin_width,
-                n_bins,
-                self_correlation,
-                periodic,
-                opt,
-            ])
+            # Add a bool to check if self-correlations should be analyzed
+            self_bool = self_correlation
+            if elem1 != elem2:
+                self_bool = False
+                warnings.warn(
+                    "Total VHF calculation: No self-correlations for {} and {}, setting `self_correlation` to `False`.".format(
+                        elem1, elem2
+                    )
+                )
+
+            data.append(
+                [
+                    trj,
+                    chunk_length,
+                    "element {}".format(elem1.symbol),
+                    "element {}".format(elem2.symbol),
+                    r_range,
+                    bin_width,
+                    n_bins,
+                    self_bool,
+                    periodic,
+                    opt,
+                ]
+            )
 
         manager = multiprocessing.Manager()
         partial_dict = manager.dict()
@@ -77,27 +102,41 @@ def compute_van_hove(trj, chunk_length, parallel=False, water=False,
                 p.start()
 
         for proc in jobs:
-                proc.join()
+            proc.join()
 
-        r = partial_dict['r']
-        del partial_dict['r']
+        r = partial_dict["r"]
+        del partial_dict["r"]
 
     else:
         partial_dict = dict()
 
         for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
-            print('doing {0} and {1} ...'.format(elem1, elem2))
-            r, g_r_t_partial = compute_partial_van_hove(trj=trj,
-                                                        chunk_length=chunk_length,
-                                                        selection1='element {}'.format(elem1.symbol),
-                                                        selection2='element {}'.format(elem2.symbol),
-                                                        r_range=r_range,
-                                                        bin_width=bin_width,
-                                                        n_bins=n_bins,
-                                                        self_correlation=self_correlation,
-                                                        periodic=periodic,
-                                                        opt=opt)
-            partial_dict[('element {}'.format(elem1.symbol), 'element {}'.format(elem2.symbol))] = g_r_t_partial
+            # Add a bool to check if self-correlations should be analyzed
+            self_bool = self_correlation
+            if elem1 != elem2:
+                self_bool = False
+                warnings.warn(
+                    "Total VHF calculation: No self-correlations for {} and {}, setting `self_correlation` to `False`.".format(
+                        elem1, elem2
+                    )
+                )
+
+            print("doing {0} and {1} ...".format(elem1, elem2))
+            r, g_r_t_partial = compute_partial_van_hove(
+                trj=trj,
+                chunk_length=chunk_length,
+                selection1="element {}".format(elem1.symbol),
+                selection2="element {}".format(elem2.symbol),
+                r_range=r_range,
+                bin_width=bin_width,
+                n_bins=n_bins,
+                self_correlation=self_bool,
+                periodic=periodic,
+                opt=opt,
+            )
+            partial_dict[
+                ("element {}".format(elem1.symbol), "element {}".format(elem2.symbol))
+            ] = g_r_t_partial
 
     if partial:
         return partial_dict
@@ -107,8 +146,12 @@ def compute_van_hove(trj, chunk_length, parallel=False, water=False,
 
     for key, val in partial_dict.items():
         elem1, elem2 = key
-        concentration1 = trj.atom_slice(trj.top.select(elem1)).n_atoms / n_physical_atoms
-        concentration2 = trj.atom_slice(trj.top.select(elem2)).n_atoms / n_physical_atoms
+        concentration1 = (
+            trj.atom_slice(trj.top.select(elem1)).n_atoms / n_physical_atoms
+        )
+        concentration2 = (
+            trj.atom_slice(trj.top.select(elem2)).n_atoms / n_physical_atoms
+        )
         form_factor1 = get_form_factor(element_name=elem1.split()[1], water=water)
         form_factor2 = get_form_factor(element_name=elem2.split()[1], water=water)
 
@@ -135,12 +178,21 @@ def worker(return_dict, data):
     key = (data[2], data[3])
     r, g_r_t_partial = compute_partial_van_hove(*data)
     return_dict[key] = g_r_t_partial
-    return_dict['r'] = r
+    return_dict["r"] = r
 
 
-def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=None,
-                             r_range=(0, 1.0), bin_width=0.005, n_bins=200,
-                             self_correlation=True, periodic=True, opt=True):
+def compute_partial_van_hove(
+    trj,
+    chunk_length=10,
+    selection1=None,
+    selection2=None,
+    r_range=(0, 1.0),
+    bin_width=0.005,
+    n_bins=200,
+    self_correlation=True,
+    periodic=True,
+    opt=True,
+):
     """Compute the partial van Hove function of a trajectory
 
     Parameters
@@ -170,7 +222,6 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     g_r_t : numpy.ndarray
         Van Hove function at each time and position
     """
-
     unique_elements = (
         set([a.element for a in trj.atom_slice(trj.top.select(selection1)).top.atoms]),
         set([a.element for a in trj.atom_slice(trj.top.select(selection2)).top.atoms]),
@@ -178,9 +229,19 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
 
     if any([len(val) > 1 for val in unique_elements]):
         raise UserWarning(
-            'Multiple elements found in a selection(s). Results may not be '
-            'direcitly comprable to scattering experiments.'
+            "Multiple elements found in a selection(s). Results may not be "
+            "direcitly comprable to scattering experiments."
         )
+
+    # Check if pair is monatomic
+    # If not, do not calculate self correlations
+    if selection1 != selection2 and self_correlation == True:
+        warnings.warn(
+            "Partial VHF calculation: No self-correlations for {} and {}, setting `self_correlation` to `False`.".format(
+                selection1, selection2
+            )
+        )
+        self_correlation = False
 
     # Don't need to store it, but this serves to check that dt is constant
     dt = get_dt(trj)
@@ -195,7 +256,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     for i in pbar(range(n_chunks)):
         times = list()
         for j in range(chunk_length):
-            times.append([chunk_length*i, chunk_length*i+j])
+            times.append([chunk_length * i, chunk_length * i + j])
         r, g_r_t_frame = md.compute_rdf_t(
             traj=trj,
             pairs=pairs,
