@@ -25,6 +25,7 @@ def compute_van_hove(
     opt=True,
     partial=False,
     form="atomic",
+
 ):
     """Compute the partial van Hove function of a trajectory
 
