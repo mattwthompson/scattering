@@ -60,7 +60,7 @@ def structure_factor(
     if weighting_factor not in ["fz", "al"]:
         raise ValueError(
             "Invalid weighting_factor `{}` is given."
-            "  The only weighting_factor currently supported is `fz`.".format(
+            "  The only weighting_factor currently supported is `fz`, and `al`.".format(
                 weighting_factor
             )
         )
