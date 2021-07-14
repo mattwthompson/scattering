@@ -1,5 +1,6 @@
 import multiprocessing
 import sys
+import warnings
 import itertools as it
 import warnings
 
@@ -23,6 +24,8 @@ def compute_van_hove(
     periodic=True,
     opt=True,
     partial=False,
+    form="atomic",
+
 ):
     """Compute the partial van Hove function of a trajectory
 
@@ -45,6 +48,8 @@ def compute_van_hove(
          parameter.
     self_correlation : bool, default=True
         Whether or not to include the self-self correlations
+    form : str, default="atomic"
+        Method for determining atomic form factor, default is using the atomic number of each element
 
     Returns
     -------
@@ -53,6 +58,11 @@ def compute_van_hove(
     g_r_t : numpy.ndarray
         Van Hove function at each time and position
     """
+    # Sanity checks
+    if water == True and form == "cromer-mann":
+        warnings.warn(
+            "Because `form='cromer-mann'`, calculating form factors from Cromer-Mann tables rather than using specific water form factors."
+        )
 
     n_physical_atoms = len([a for a in trj.top.atoms if a.element.mass > 0])
     unique_elements = list(
@@ -152,8 +162,22 @@ def compute_van_hove(
         concentration2 = (
             trj.atom_slice(trj.top.select(elem2)).n_atoms / n_physical_atoms
         )
-        form_factor1 = get_form_factor(element_name=elem1.split()[1], water=water)
-        form_factor2 = get_form_factor(element_name=elem2.split()[1], water=water)
+
+        if form == "atomic":
+            form_factor1 = get_form_factor(element_name=elem1.split()[1], water=water)
+            form_factor2 = get_form_factor(element_name=elem2.split()[1], water=water)
+        elif form == "cromer-mann":
+            form_factor1 = np.zeros(shape=r.shape)
+            form_factor2 = np.zeros(shape=r.shape)
+            for i, distance in enumerate(r):
+                ff1_atr = get_form_factor(
+                    element_name=elem1.split()[1], q=1 / distance, method=form
+                )
+                ff2_atr = get_form_factor(
+                    element_name=elem2.split()[1], q=1 / distance, method=form
+                )
+                form_factor1[i] = ff1_atr
+                form_factor2[i] = ff2_atr
 
         coeff = form_factor1 * concentration1 * form_factor2 * concentration2
         if g_r_t is None:

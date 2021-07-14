@@ -25,6 +25,21 @@ def test_run_total_vhf(step):
     assert 0.95 < np.mean(g_r_t[:, -10:]) < 1.05
 
 
+@pytest.mark.parametrize("form", ["atomic", "cromer-mann"])
+def test_total_vhf_form(form):
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+
+    chunk_length = 4
+    n_chunks = 5
+
+    r, t, g_r_t = run_total_vhf(
+        trj,
+        chunk_length=chunk_length,
+        n_chunks=n_chunks,
+        form=form,
+    )
+
+
 @pytest.mark.parametrize("step", [1, 2])
 def test_run_partial_vhf(step):
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
