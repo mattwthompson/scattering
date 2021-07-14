@@ -1,14 +1,16 @@
 import multiprocessing
 import sys
 import itertools as it
+import warnings
 
 import numpy as np
 import mdtraj as md
 from progressbar import ProgressBar
+from itertools import combinations_with_replacement
 
 from scattering.utils.utils import get_dt
 from scattering.utils.constants import get_form_factor
-from itertools import combinations_with_replacement
+
 
 
 def compute_van_hove(
@@ -61,10 +63,17 @@ def compute_van_hove(
 
     if parallel:
         data = []
-        # for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
-        for elems in it.combinations_with_replacement(unique_elements[::-1], 2):
-            elem1 = sorted(elems)[0]
-            elem2 = sorted(elems)[1]
+        for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
+            # Add a bool to check if self-correlations should be analyzed
+            self_bool = self_correlation
+            if elem1 != elem2:
+                self_bool = False
+                warnings.warn(
+                    "Total VHF calculation: No self-correlations for {} and {}, setting `self_correlation` to `False`.".format(
+                        elem1, elem2
+                    )
+                )
+
             data.append(
                 [
                     trj,
@@ -74,7 +83,7 @@ def compute_van_hove(
                     r_range,
                     bin_width,
                     n_bins,
-                    self_correlation,
+                    self_bool,
                     periodic,
                     opt,
                 ]
@@ -103,9 +112,17 @@ def compute_van_hove(
     else:
         partial_dict = dict()
 
-        for elems in it.combinations_with_replacement(unique_elements[::-1], 2):
-            elem1 = sorted(elems)[0]
-            elem2 = sorted(elems)[1]
+        for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
+            # Add a bool to check if self-correlations should be analyzed
+            self_bool = self_correlation
+            if elem1 != elem2:
+                self_bool = False
+                warnings.warn(
+                    "Total VHF calculation: No self-correlations for {} and {}, setting `self_correlation` to `False`.".format(
+                        elem1, elem2
+                    )
+                )
+
             print("doing {0} and {1} ...".format(elem1, elem2))
             r, g_r_t_partial = compute_partial_van_hove(
                 trj=trj,
@@ -115,7 +132,7 @@ def compute_van_hove(
                 r_range=r_range,
                 bin_width=bin_width,
                 n_bins=n_bins,
-                self_correlation=self_correlation,
+                self_correlation=self_bool,
                 periodic=periodic,
                 opt=opt,
             )
@@ -207,7 +224,6 @@ def compute_partial_van_hove(
     g_r_t : numpy.ndarray
         Van Hove function at each time and position
     """
-
     unique_elements = (
         set([a.element for a in trj.atom_slice(trj.top.select(selection1)).top.atoms]),
         set([a.element for a in trj.atom_slice(trj.top.select(selection2)).top.atoms]),
@@ -218,6 +234,16 @@ def compute_partial_van_hove(
             "Multiple elements found in a selection(s). Results may not be "
             "direcitly comprable to scattering experiments."
         )
+
+    # Check if pair is monatomic
+    # If not, do not calculate self correlations
+    if selection1 != selection2 and self_correlation == True:
+        warnings.warn(
+            "Partial VHF calculation: No self-correlations for {} and {}, setting `self_correlation` to `False`.".format(
+                selection1, selection2
+            )
+        )
+        self_correlation = False
 
     # Don't need to store it, but this serves to check that dt is constant
     dt = get_dt(trj)
