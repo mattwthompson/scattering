@@ -73,7 +73,7 @@ def test_vhf_from_pvhf():
         if pairs[0].name > pairs[1].name:
             pair2 = pairs[0]
             pair1 = pairs[1]
-       
+
         x = compute_partial_van_hove(
             trj,
             chunk_length=chunk_length,
@@ -87,31 +87,79 @@ def test_vhf_from_pvhf():
 
     assert np.allclose(g_r_t, total_g_r_t)
 
-trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
-unique_atoms = get_unique_atoms(trj)
-atom = md.core.topology.Atom(name="Na", element=md.core.element.sodium, index=0, residue=1)
 
-@pytest.mark.parametrize(
-    "tuple_keys", [(unique_atoms[0], unique_atoms[1], unique_atoms[1]), ("H","O"),("H-O"),"HO", (atom, unique_atoms[0])]
-)
-def test_pvhf_error(tuple_keys):
+def test_pvhf_error_2_atoms_per_pair():
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+    unique_atoms = get_unique_atoms(trj)
 
-    topology = trj.topology
-    atoms = [i.element.symbol for i in topology.atoms]
-    atom_list = sorted(set(atoms))
-    chunk_length = 20
-
-    # obtating dict of np.array of pvhf
     partial_dict = {}
     x = compute_partial_van_hove(
         trj,
-        chunk_length=chunk_length,
+        chunk_length=20,
         selection1=f"name O",
         selection2=f"name O",
     )
-    partial_dict[tuple_keys] = x[1]
+    partial_dict[(unique_atoms[0], unique_atoms[1], unique_atoms[1])] = x[1]
 
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match="Dictionary key not valid. Must only have 2 atoms per pair"
+    ):
         vhf_from_pvhf(trj, partial_dict)
 
+
+def test_pvhf_error_atoms_in_trj():
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+    unique_atoms = get_unique_atoms(trj)
+    atom = md.core.topology.Atom(
+        name="Na", element=md.core.element.sodium, index=0, residue=1
+    )
+
+    partial_dict = {}
+    x = compute_partial_van_hove(
+        trj,
+        chunk_length=20,
+        selection1=f"name O",
+        selection2=f"name O",
+    )
+    partial_dict[(atom, unique_atoms[0])] = x[1]
+
+    with pytest.raises(
+        ValueError, match="Dictionary key not valid. Must be in the MDTraj"
+    ):
+        vhf_from_pvhf(trj, partial_dict)
+
+
+def test_pvhf_error_is_atom_type():
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+    unique_atoms = get_unique_atoms(trj)
+
+    partial_dict = {}
+    x = compute_partial_van_hove(
+        trj,
+        chunk_length=20,
+        selection1=f"name O",
+        selection2=f"name O",
+    )
+    partial_dict[("H", "O")] = x[1]
+
+    with pytest.raises(
+        ValueError, match="Dictionary key not valid. Must be an Atom type"
+    ):
+        vhf_from_pvhf(trj, partial_dict)
+
+
+def test_pvhf_error_is_tuple():
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+    unique_atoms = get_unique_atoms(trj)
+    key = frozenset({unique_atoms[0], unique_atoms[1]})
+    partial_dict = {}
+    x = compute_partial_van_hove(
+        trj,
+        chunk_length=20,
+        selection1=f"name O",
+        selection2=f"name O",
+    )
+    partial_dict[key] = x[1]
+
+    with pytest.raises(ValueError, match="Dictionary key not valid. Must be a tuple"):
+        vhf_from_pvhf(trj, partial_dict)
