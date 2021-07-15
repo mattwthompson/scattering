@@ -1,15 +1,17 @@
 import numpy as np
+import pytest
 import matplotlib.pyplot as plt
 import mdtraj as md
 import pytest
 
-from scattering.van_hove import compute_van_hove
+from scattering.van_hove import compute_van_hove, compute_partial_van_hove
 from scattering.utils.io import get_fn
 from scattering.van_hove import compute_partial_van_hove
 from scattering.van_hove import vhf_from_pvhf
 from itertools import combinations_with_replacement
 from scattering.utils.constants import get_form_factor
 from scattering.van_hove import get_unique_atoms
+
 
 
 def test_van_hove():
@@ -55,6 +57,36 @@ def test_van_hove_equal():
     assert np.allclose(g_r_t_p, g_r_t_s)
 
 
+def test_self_partial_warning():
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+
+    chunk_length = 2
+
+    with pytest.warns(UserWarning, match=r"Partial VHF"):
+        compute_partial_van_hove(
+            trj,
+            chunk_length=chunk_length,
+            selection1="name O",
+            selection2="name H",
+            self_correlation=True,
+        )
+
+
+@pytest.mark.parametrize("parallel", [True, False])
+def test_self_warning(parallel):
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+
+    chunk_length = 2
+
+    with pytest.warns(UserWarning, match=r"Total VHF"):
+        compute_van_hove(
+            trj,
+            chunk_length=chunk_length,
+            self_correlation=True,
+            parallel=parallel,
+        )
+
+        
 def test_vhf_from_pvhf():
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
     unique_atoms = get_unique_atoms(trj)
