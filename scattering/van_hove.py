@@ -304,23 +304,23 @@ def vhf_from_pvhf(trj, partial_dict, water=False):
     for atom_pair in partial_dict.keys():
 
         ##atom_pair_check = atom_pair.split("-")
-        #checks if key is a tuple
+        # checks if key is a tuple
         if isinstance(atom_pair, tuple) == False:
             raise ValueError("Dictionary key not valid. Must be a tuple")
         for atom in atom_pair:
-            #checks if the atoms in tuple pair are atom types
+            # checks if the atoms in tuple pair are atom types
             if type(atom) != type(unique_atoms[0]):
                 raise ValueError("Dictionary key not valid. Must be an Atom type")
-            #checks if atoms are in the trajectory
+            # checks if atoms are in the trajectory
             if atom not in unique_atoms:
                 raise ValueError("Dictionary key not valid. Must be in the MDTraj")
 
-        #checks if key has two atoms
+        # checks if key has two atoms
         if len(atom_pair) != 2:
             raise ValueError(
                 "Dictionary key not valid. Must only have 2 atoms per pair"
             )
-        
+
         atom1 = atom_pair[0]
         atom2 = atom_pair[1]
         coeff = (
