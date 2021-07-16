@@ -12,7 +12,7 @@ from scattering.utils.constants import get_form_factor
 
 
 def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_count=None,
-                     water=False, r_range=(0, 1.0), bin_width=0.005, n_bins=None,
+                     num_concurrent_paris=100000, water=False, r_range=(0, 1.0), bin_width=0.005, n_bins=None,
                      self_correlation=True, periodic=True, opt=True, partial=False):
     """Compute the partial van Hove function of a trajectory
 
@@ -26,6 +26,8 @@ def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_c
         Use parallel implementation with `multiprocessing`
     water : bool
         use X-ray form factors for water that account for polarization
+    num_concurrent_pairs : int, optional, default=100000
+        number of atom pairs to compute at once
     r_range : array-like, shape=(2,), optional, default=(0.0, 1.0)
         Minimum and maximum radii.
     bin_width : float, optional, default=0.005
@@ -68,6 +70,7 @@ def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_c
                                                     selection2='element {}'.format(elem2.symbol),
                                                     chunk_starts=chunk_starts,
                                                     cpu_count=cpu_count,
+                                                    num_concurrent_pairs=num_concurrent_paris,
                                                     r_range=r_range,
                                                     bin_width=bin_width,
                                                     n_bins=n_bins,
@@ -110,7 +113,7 @@ def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_c
     return r, t, g_r_t_final
 
 
-def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=None,
+def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=None, num_concurrent_pairs=100000,
                              chunk_starts=None, cpu_count=None, r_range=(0, 1.0), bin_width=0.005, 
                              n_bins=200, self_correlation=True, periodic=True, opt=True, parallel=True):
     """Compute the partial van Hove function of a trajectory
@@ -125,6 +128,8 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
         selection to be considered, in the style of MDTraj atom selection
     selection2 : str
         selection to be considered, in the style of MDTraj atom selection
+    num_concurrent_pairs : int, default=100000
+        number of atom pairs to compute at once
     r_range : array-like, shape=(2,), optional, default=(0.0, 1.0)
         Minimum and maximum radii.
     bin_width : float, optional, default=0.005
@@ -191,6 +196,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
                 start,
                 result_dict, 
                 chunk_length, 
+                num_concurrent_pairs,
                 r_range, 
                 bin_width, 
                 n_bins, 
@@ -213,6 +219,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
                 start,
                 result_dict, 
                 chunk_length, 
+                num_concurrent_pairs,
                 r_range, 
                 bin_width, 
                 n_bins, 
@@ -238,7 +245,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     return r, g_r_t
 
 def worker(trj, pairs, start_time, result_dict, chunk_length=10, 
-           r_range=(0, 1.0), bin_width=0.005, n_bins=200, 
+           num_concurrent_pairs=100000, r_range=(0, 1.0), bin_width=0.005, n_bins=200, 
            self_correlation=True, periodic=True, opt=True):
     times = list()
     for j in range(chunk_length):
@@ -248,6 +255,7 @@ def worker(trj, pairs, start_time, result_dict, chunk_length=10,
         traj=trj,
         pairs=pairs,
         times=times,
+        num_concurrent_pairs=num_concurrent_pairs,
         r_range=r_range,
         bin_width=bin_width,
         n_bins=n_bins,
@@ -256,6 +264,9 @@ def worker(trj, pairs, start_time, result_dict, chunk_length=10,
         periodic=periodic,
         opt=opt,
     )
+
+    del trj
+    del pairs
     
     result_dict[start_time] = g_r_t_frame
     result_dict["r"] = r
