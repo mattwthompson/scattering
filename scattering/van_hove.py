@@ -1,11 +1,10 @@
 import multiprocessing
-import sys
 import itertools as it
 import warnings
+import psutil
 
 import numpy as np
 import mdtraj as md
-from progressbar import ProgressBar
 
 from scattering.utils.utils import get_dt
 from scattering.utils.constants import get_form_factor
@@ -183,7 +182,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
         
     if parallel:
         if cpu_count == None:    
-            cpu_count = multiprocessing.cpu_count()
+            cpu_count = min(multiprocessing.cpu_count(), psutil.virtual_memory().total // 1024**3)
         pool = multiprocessing.Pool(processes = cpu_count, maxtasksperchild = 1)
         manager = multiprocessing.Manager()
         result_dict = manager.dict()
@@ -250,7 +249,7 @@ def worker(trj, pairs, start_time, result_dict, chunk_length=10,
     times = list()
     for j in range(chunk_length):
         times.append([0,j])
-
+    print("Start!")
     r, g_r_t_frame = md.compute_rdf_t(
         traj=trj,
         pairs=pairs,
@@ -264,7 +263,8 @@ def worker(trj, pairs, start_time, result_dict, chunk_length=10,
         periodic=periodic,
         opt=opt,
     )
-
+    print("Done!")
+    
     del trj
     del pairs
     
