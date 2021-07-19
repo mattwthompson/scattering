@@ -1,7 +1,9 @@
 import multiprocessing
 import itertools as it
+from os import PRIO_PGRP
 import warnings
-import psutil
+from numpy.core.fromnumeric import repeat
+from psutil import virtual_memory
 
 import numpy as np
 import mdtraj as md
@@ -51,7 +53,6 @@ def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_c
     partial_dict = dict()
 
     for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
-
         # Add a bool to check if self-correlations should be analyzed
         self_bool = self_correlation
         if elem1 != elem2 and self_correlation:
@@ -78,6 +79,7 @@ def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_c
                                                     opt=opt,
                                                     parallel=parallel,
                                                     )
+
         partial_dict[('element {}'.format(elem1.symbol), 'element {}'.format(elem2.symbol))] = g_r_t_partial
 
     if partial:
@@ -148,7 +150,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     g_r_t : numpy.ndarray
         Van Hove function at each time and position
     """
-
+    
     unique_elements = (
         set([a.element for a in trj.atom_slice(trj.top.select(selection1)).top.atoms]),
         set([a.element for a in trj.atom_slice(trj.top.select(selection2)).top.atoms]),
@@ -169,54 +171,45 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
                 )
         )
         self_correlation = False
-
+    
     # Don't need to store it, but this serves to check that dt is constant
     dt = get_dt(trj)
-
     pairs = trj.top.select_pairs(selection1=selection1, selection2=selection2)
-    
+
     if chunk_starts is None:
         chunk_starts = []
         for i in range(trj.n_frames//chunk_length):
             chunk_starts.append(i*chunk_length)
-        
+    
     if parallel:
         if cpu_count == None:    
-            cpu_count = min(multiprocessing.cpu_count(), psutil.virtual_memory().total // 1024**3)
-        pool = multiprocessing.Pool(processes = cpu_count, maxtasksperchild = 1)
-        manager = multiprocessing.Manager()
-        result_dict = manager.dict()
-
-        data = []
-        for start in chunk_starts:
-            data.append([ 
-                trj[start:start+chunk_length], 
-                pairs,
-                start,
-                result_dict, 
-                chunk_length, 
-                num_concurrent_pairs,
-                r_range, 
-                bin_width, 
-                n_bins, 
-                self_correlation, 
-                periodic, 
-                opt, 
-            ]) 
-
-        pool.starmap(worker,data)
-        pool.close()
-        pool.join()
+            cpu_count = min(multiprocessing.cpu_count(), virtual_memory().total // 1024**3)
+        result = None
+        with multiprocessing.Pool(processes = cpu_count, maxtasksperchild = 1) as pool:
+            data = []
+            for start in chunk_starts:
+                data.append([ 
+                    trj[start:start+chunk_length], 
+                    pairs,
+                    chunk_length, 
+                    num_concurrent_pairs,
+                    r_range, 
+                    bin_width, 
+                    n_bins, 
+                    self_correlation, 
+                    periodic, 
+                    opt, 
+                ])
+            result = pool.starmap(worker,data)
+            pool.close()
+            pool.join()
     
     else:
-        result_dict = dict()
+        result = []
         for start in chunk_starts:
-            
-            worker(
+            result.append(worker(
                 trj[start:start+chunk_length], 
                 pairs,
-                start,
-                result_dict, 
                 chunk_length, 
                 num_concurrent_pairs,
                 r_range, 
@@ -225,31 +218,28 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
                 self_correlation, 
                 periodic, 
                 opt, 
-            ) 
-            
-            
+            ))
 
-    r = result_dict["r"]
-    del result_dict["r"]
+    r = []
+    for val in result:
+        r.append(val[0])
+    r = np.mean(r, axis=0)
 
-    g_r_t = None
-
-    for key, val in result_dict.items():
-        if g_r_t is None:
-            g_r_t = np.zeros_like(val)
-        g_r_t += val
-
-    g_r_t /= len(chunk_starts)
+    g_r_t = []
+    for val in result:
+        g_r_t.append(val[1])
+    g_r_t = np.mean(g_r_t, axis=0)
 
     return r, g_r_t
 
-def worker(trj, pairs, start_time, result_dict, chunk_length=10, 
+def worker(trj, pairs, chunk_length=10, 
            num_concurrent_pairs=100000, r_range=(0, 1.0), bin_width=0.005, n_bins=200, 
            self_correlation=True, periodic=True, opt=True):
     times = list()
+   
     for j in range(chunk_length):
         times.append([0,j])
-    print("Start!")
+    
     r, g_r_t_frame = md.compute_rdf_t(
         traj=trj,
         pairs=pairs,
@@ -263,12 +253,5 @@ def worker(trj, pairs, start_time, result_dict, chunk_length=10,
         periodic=periodic,
         opt=opt,
     )
-    print("Done!")
     
-    del trj
-    del pairs
-    
-    result_dict[start_time] = g_r_t_frame
-    result_dict["r"] = r
-
-    return
+    return [r, g_r_t_frame]
