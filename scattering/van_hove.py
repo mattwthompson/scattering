@@ -2,8 +2,9 @@ import multiprocessing
 import itertools as it
 from os import PRIO_PGRP
 import warnings
-from numpy.core.fromnumeric import repeat
 from psutil import virtual_memory
+import progressbar
+
 
 import numpy as np
 import mdtraj as md
@@ -174,11 +175,15 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     
     # Don't need to store it, but this serves to check that dt is constant
     dt = get_dt(trj)
-    pairs = trj.top.select_pairs(selection1=selection1, selection2=selection2)
+
+    cut_trj = trj.atom_slice(trj.top.select(str(selection1) + " or " + str(selection2)))
+    del trj
+
+    pairs = cut_trj.top.select_pairs(selection1=selection1, selection2=selection2)
 
     if chunk_starts is None:
         chunk_starts = []
-        for i in range(trj.n_frames//chunk_length):
+        for i in range(cut_trj.n_frames//chunk_length):
             chunk_starts.append(i*chunk_length)
     
     if parallel:
@@ -186,55 +191,58 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
             cpu_count = min(multiprocessing.cpu_count(), virtual_memory().total // 1024**3)
         result = None
         with multiprocessing.Pool(processes = cpu_count, maxtasksperchild = 1) as pool:
-            data = []
-            for start in chunk_starts:
-                data.append([ 
-                    trj[start:start+chunk_length], 
-                    pairs,
-                    chunk_length, 
-                    num_concurrent_pairs,
-                    r_range, 
-                    bin_width, 
-                    n_bins, 
-                    self_correlation, 
-                    periodic, 
-                    opt, 
-                ])
-            result = pool.starmap(worker,data)
+            
+            
+            
+            result=[]
+            output = pool.imap_unordered(_worker,_data(cut_trj, 
+                                                       chunk_starts,
+                                                       pairs,
+                                                       chunk_length, 
+                                                       num_concurrent_pairs,
+                                                       r_range, 
+                                                       bin_width, 
+                                                       n_bins, 
+                                                       self_correlation, 
+                                                       periodic, 
+                                                       opt, 
+                                                       ))
             pool.close()
             pool.join()
-    
+            for i in output:
+                result.append(i)
     else:
         result = []
-        for start in chunk_starts:
-            result.append(worker(
-                trj[start:start+chunk_length], 
-                pairs,
-                chunk_length, 
-                num_concurrent_pairs,
-                r_range, 
-                bin_width, 
-                n_bins, 
-                self_correlation, 
-                periodic, 
-                opt, 
-            ))
-
+        data = _data(cut_trj, 
+                     chunk_starts,
+                     pairs,
+                     chunk_length, 
+                     num_concurrent_pairs,
+                     r_range, 
+                     bin_width, 
+                     n_bins, 
+                     self_correlation, 
+                     periodic, 
+                     opt, 
+                     )
+        for i in data:
+            result.append(_worker(data))
+    
     r = []
     for val in result:
         r.append(val[0])
     r = np.mean(r, axis=0)
-
+    
     g_r_t = []
     for val in result:
         g_r_t.append(val[1])
     g_r_t = np.mean(g_r_t, axis=0)
-
+    
     return r, g_r_t
 
-def worker(trj, pairs, chunk_length=10, 
-           num_concurrent_pairs=100000, r_range=(0, 1.0), bin_width=0.005, n_bins=200, 
-           self_correlation=True, periodic=True, opt=True):
+def _worker(input_list):
+    trj, pairs, chunk_length, num_concurrent_pairs, r_range, bin_width, n_bins, self_correlation, periodic, opt = input_list
+    
     times = list()
    
     for j in range(chunk_length):
@@ -253,5 +261,19 @@ def worker(trj, pairs, chunk_length=10,
         periodic=periodic,
         opt=opt,
     )
-    
     return [r, g_r_t_frame]
+
+def _data(trj, chunk_starts, pairs, chunk_length, num_concurrent_pairs, r_range, bin_width, n_bins, self_correlation, periodic, opt):
+    for start in progressbar.progressbar(chunk_starts):
+        yield ([ 
+            trj[start:start+chunk_length], 
+            pairs,
+            chunk_length, 
+            num_concurrent_pairs,
+            r_range, 
+            bin_width, 
+            n_bins, 
+            self_correlation, 
+            periodic, 
+            opt, 
+        ])
