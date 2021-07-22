@@ -191,10 +191,6 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
             cpu_count = min(multiprocessing.cpu_count(), virtual_memory().total // 1024**3)
         result = None
         with multiprocessing.Pool(processes = cpu_count, maxtasksperchild = 1) as pool:
-            
-            
-            
-            result=[]
             output = pool.imap_unordered(_worker,_data(cut_trj, 
                                                        chunk_starts,
                                                        pairs,
@@ -207,10 +203,11 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
                                                        periodic, 
                                                        opt, 
                                                        ))
+            result=[]
+            for i in progressbar.progressbar(output):
+                result.append(i)
             pool.close()
             pool.join()
-            for i in output:
-                result.append(i)
     else:
         result = []
         data = _data(cut_trj, 
@@ -225,7 +222,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
                      periodic, 
                      opt, 
                      )
-        for i in data:
+        for i in progressbar.progressbar(data):
             result.append(_worker(data))
     
     r = []
@@ -264,7 +261,7 @@ def _worker(input_list):
     return [r, g_r_t_frame]
 
 def _data(trj, chunk_starts, pairs, chunk_length, num_concurrent_pairs, r_range, bin_width, n_bins, self_correlation, periodic, opt):
-    for start in progressbar.progressbar(chunk_starts):
+    for start in chunk_starts:
         yield ([ 
             trj[start:start+chunk_length], 
             pairs,
