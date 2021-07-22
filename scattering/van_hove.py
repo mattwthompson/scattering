@@ -204,7 +204,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
                                                        opt, 
                                                        ))
             result=[]
-            for i in progressbar.progressbar(output):
+            for i in progressbar.progressbar(output, max_value=len(chunk_starts)):
                 result.append(i)
             pool.close()
             pool.join()
@@ -222,7 +222,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
                      periodic, 
                      opt, 
                      )
-        for i in progressbar.progressbar(data):
+        for i in progressbar.progressbar(data, max_value=len(chunk_starts)):
             result.append(_worker(data))
     
     r = []
