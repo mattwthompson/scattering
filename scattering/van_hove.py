@@ -3,7 +3,7 @@ import itertools as it
 from os import PRIO_PGRP
 import warnings
 from psutil import virtual_memory
-import progressbar
+from progressbar import ProgressBar
 
 
 import numpy as np
@@ -187,26 +187,16 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
             chunk_starts.append(i*chunk_length)
     
     if parallel:
-        if cpu_count == None:    
+        if cpu_count == None:
             cpu_count = min(multiprocessing.cpu_count(), virtual_memory().total // 1024**3)
-        result = None
+        result = []
         with multiprocessing.Pool(processes = cpu_count, maxtasksperchild = 1) as pool:
-            output = pool.imap_unordered(_worker,_data(cut_trj, 
-                                                       chunk_starts,
-                                                       pairs,
-                                                       chunk_length, 
-                                                       num_concurrent_pairs,
-                                                       r_range, 
-                                                       bin_width, 
-                                                       n_bins, 
-                                                       self_correlation, 
-                                                       periodic, 
-                                                       opt, 
-                                                       ))
-            result=[]
-            for i in progressbar.progressbar(output, max_value=len(chunk_starts)):
-                result.append(i)
-            pool.close()
+            pBar = ProgressBar(max_value=len(chunk_starts))
+            for output in pBar(pool.imap_unordered(_worker,_data(cut_trj, chunk_starts,pairs, chunk_length,
+                                                                 num_concurrent_pairs, r_range, bin_width,
+                                                                 n_bins, self_correlation, periodic, opt))):
+                result.append(output)
+            pool.terminate()
             pool.join()
     else:
         result = []
@@ -222,7 +212,8 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
                      periodic, 
                      opt, 
                      )
-        for i in progressbar.progressbar(data, max_value=len(chunk_starts)):
+        pBar = ProgressBar(max_value=len(chunk_starts))
+        for i in pBar(data, max_value=len(chunk_starts)):
             result.append(_worker(data))
     
     r = []
