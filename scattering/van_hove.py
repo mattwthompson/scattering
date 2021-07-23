@@ -26,7 +26,7 @@ def compute_van_hove(
     opt=True,
     partial=False,
 ):
-    """Compute the partial van Hove function of a trajectory
+    """Compute the  van Hove function of a trajectory. Atom pairs referenced in partial van Hove functions are in alphabetical order. If specific ordering of atom pairs are needed, user should use compute_partial_van_hove then vhf_from_pvhf to compute total van Hove function
 
     Parameters
     ----------
@@ -47,6 +47,8 @@ def compute_van_hove(
          parameter.
     self_correlation : bool, default=True
         Whether or not to include the self-self correlations
+    partial : bool, default = False
+        Whether or not to return a dictionary including partial Van Hove function.
 
     Returns
     -------
