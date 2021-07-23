@@ -123,6 +123,10 @@ def compute_van_hove(
                     )
                 )
 
+            if elem1.symbol > elem2.symbol:
+                temp = elem1
+                elem1 = elem2
+                elem2 = temp
             print("doing {0} and {1} ...".format(elem1, elem2))
             r, g_r_t_partial = compute_partial_van_hove(
                 trj=trj,

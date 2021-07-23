@@ -94,8 +94,8 @@ def test_vhf_from_pvhf():
 
     # obtaining g_r_t from total func
     chunk_length = 20
-    r, t, g_r_t = compute_van_hove(trj, chunk_length=chunk_length)
-
+    r, t, g_r_t= compute_van_hove(trj, chunk_length=chunk_length)
+    partial_dict = compute_van_hove(trj, chunk_length=chunk_length, partial=True)
     # obtating dict of np.array of pvhf
     partial_dict = {}
 
