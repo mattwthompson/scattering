@@ -12,7 +12,6 @@ from scattering.utils.utils import get_dt
 from scattering.utils.constants import get_form_factor
 
 
-
 def compute_van_hove(
     trj,
     chunk_length,
@@ -299,12 +298,12 @@ def get_unique_atoms(trj):
         List of unique atoms in trajectory
 
     """
-    seen_atoms = set()
-    unique_atoms = [
-        seen_atoms.add(atom.name) or atom
-        for atom in trj.topology.atoms
-        if atom.name not in seen_atoms
-    ]
+    seen_atoms = []
+    unique_atoms = []
+    for atom in trj.topology.atoms:
+        if atom.name not in seen_atoms:
+            seen_atoms.append(atom.name)
+            unique_atoms.append(atom)
 
     return unique_atoms
 
@@ -328,6 +327,7 @@ def vhf_from_pvhf(trj, partial_dict, water=False):
         Total Van Hove Function generated from addition of partial Van Hove Functions
     """
     unique_atoms = get_unique_atoms(trj)
+    all_atoms = [atom for atom in trj.topology.atoms]
 
     norm_coeff = 0
     dict_shape = list(partial_dict.values())[0][0].shape
@@ -344,7 +344,7 @@ def vhf_from_pvhf(trj, partial_dict, water=False):
             if type(atom) != type(unique_atoms[0]):
                 raise ValueError("Dictionary key not valid. Must be an Atom type")
             # checks if atoms are in the trajectory
-            if atom not in unique_atoms:
+            if atom not in all_atoms:
                 raise ValueError("Dictionary key not valid. Must be in the MDTraj")
 
         # checks if key has two atoms
