@@ -4,10 +4,13 @@ import matplotlib.pyplot as plt
 import mdtraj as md
 import pytest
 
-from scattering.van_hove import compute_van_hove, compute_partial_van_hove
+from scattering.van_hove import (
+    compute_van_hove,
+    compute_partial_van_hove,
+    compute_partial_van_hove,
+    vhf_from_pvhf,
+)
 from scattering.utils.io import get_fn
-from scattering.van_hove import compute_partial_van_hove
-from scattering.van_hove import vhf_from_pvhf
 from itertools import combinations_with_replacement
 from scattering.utils.constants import get_form_factor
 from scattering.utils.utils import get_unique_atoms
@@ -101,6 +104,7 @@ def test_vhf_from_pvhf():
     for pairs in tuples_combination:
         pair1 = pairs[0]
         pair2 = pairs[1]
+        # Set in alphabetical order
         if pairs[0].name > pairs[1].name:
             pair2 = pairs[0]
             pair1 = pairs[1]
@@ -127,8 +131,8 @@ def test_pvhf_error_2_atoms_per_pair():
     x = compute_partial_van_hove(
         trj,
         chunk_length=20,
-        selection1=f"name O",
-        selection2=f"name O",
+        selection1="name O",
+        selection2="name O",
     )
     partial_dict[(unique_atoms[0], unique_atoms[1], unique_atoms[1])] = x[1]
 
@@ -149,13 +153,13 @@ def test_pvhf_error_atoms_in_trj():
     x = compute_partial_van_hove(
         trj,
         chunk_length=20,
-        selection1=f"name O",
-        selection2=f"name O",
+        selection1="name O",
+        selection2="name O",
     )
     partial_dict[(atom, unique_atoms[0])] = x[1]
 
     with pytest.raises(
-        ValueError, match="Dictionary key not valid. Must be in the MDTraj"
+        ValueError, match="Dictionary key not valid, `Atom`"
     ):
         vhf_from_pvhf(trj, partial_dict)
 
@@ -168,13 +172,13 @@ def test_pvhf_error_is_atom_type():
     x = compute_partial_van_hove(
         trj,
         chunk_length=20,
-        selection1=f"name O",
-        selection2=f"name O",
+        selection1="name O",
+        selection2="name O",
     )
     partial_dict[("H", "O")] = x[1]
 
     with pytest.raises(
-        ValueError, match="Dictionary key not valid. Must be an Atom type"
+        ValueError, match="Dictionary key not valid. Must be type"
     ):
         vhf_from_pvhf(trj, partial_dict)
 
@@ -187,8 +191,8 @@ def test_pvhf_error_is_tuple():
     x = compute_partial_van_hove(
         trj,
         chunk_length=20,
-        selection1=f"name O",
-        selection2=f"name O",
+        selection1="name O",
+        selection2="name O",
     )
     partial_dict[key] = x[1]
 

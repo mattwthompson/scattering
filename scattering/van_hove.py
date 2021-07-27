@@ -290,7 +290,7 @@ def compute_partial_van_hove(
 
 def vhf_from_pvhf(trj, partial_dict, water=False):
     """
-    Compute the total van Hove function from partial van Hove functions
+    Compute the total Van Hove function from partial Van Hove functions
 
 
     Parameters
@@ -298,8 +298,8 @@ def vhf_from_pvhf(trj, partial_dict, water=False):
     trj : mdtrj.Trajectory
         trajectory on which partial vhf were calculated form
     partial_dict : dict
-        dictionary containing partial vhf as a np.array. key is a tuple with 2 atom types
-
+        dictionary containing partial vhf as a np.array.
+        Key is a tuple of len 2 with 2 atom types
 
     Return
     -------
@@ -314,23 +314,25 @@ def vhf_from_pvhf(trj, partial_dict, water=False):
     total_grt = np.zeros(dict_shape)
 
     for atom_pair in partial_dict.keys():
-
-        ##atom_pair_check = atom_pair.split("-")
         # checks if key is a tuple
         if isinstance(atom_pair, tuple) == False:
-            raise ValueError("Dictionary key not valid. Must be a tuple")
+            raise ValueError("Dictionary key not valid. Must be a tuple.")
         for atom in atom_pair:
             # checks if the atoms in tuple pair are atom types
             if type(atom) != type(unique_atoms[0]):
-                raise ValueError("Dictionary key not valid. Must be an Atom type")
+                raise ValueError(
+                    "Dictionary key not valid. Must be type `MDTraj.Atom`."
+                )
             # checks if atoms are in the trajectory
             if atom not in all_atoms:
-                raise ValueError("Dictionary key not valid. Must be in the MDTraj")
+                raise ValueError(
+                    f"Dictionary key not valid, `Atom` {atom} not in MDTraj trajectory."
+                )
 
         # checks if key has two atoms
         if len(atom_pair) != 2:
             raise ValueError(
-                "Dictionary key not valid. Must only have 2 atoms per pair"
+                "Dictionary key not valid. Must only have 2 atoms per pair."
             )
 
         atom1 = atom_pair[0]
