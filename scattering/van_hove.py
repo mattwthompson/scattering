@@ -6,8 +6,9 @@ import warnings
 import numpy as np
 import mdtraj as md
 from progressbar import ProgressBar
+from itertools import combinations_with_replacement
 
-from scattering.utils.utils import get_dt
+from scattering.utils.utils import get_dt, get_unique_atoms
 from scattering.utils.constants import get_form_factor
 
 
@@ -24,7 +25,11 @@ def compute_van_hove(
     opt=True,
     partial=False,
 ):
-    """Compute the partial van Hove function of a trajectory
+    """Compute the  Van Hove function of a trajectory. Atom pairs
+    referenced in partial Van Hove functions are in alphabetical
+    order. If specific ordering of atom pairs are needed, user should
+    use compute_partial_van_hove then vhf_from_pvhf to compute total
+    Van Hove function.
 
     Parameters
     ----------
@@ -45,6 +50,8 @@ def compute_van_hove(
          parameter.
     self_correlation : bool, default=True
         Whether or not to include the self-self correlations
+    partial : bool, default = False
+        Whether or not to return a dictionary including partial Van Hove function.
 
     Returns
     -------
@@ -121,6 +128,10 @@ def compute_van_hove(
                     )
                 )
 
+            if elem1.symbol > elem2.symbol:
+                temp = elem1
+                elem1 = elem2
+                elem2 = temp
             print("doing {0} and {1} ...".format(elem1, elem2))
             r, g_r_t_partial = compute_partial_van_hove(
                 trj=trj,
@@ -275,3 +286,70 @@ def compute_partial_van_hove(
         g_r_t += g_r_t_frame
 
     return r, g_r_t
+
+
+def vhf_from_pvhf(trj, partial_dict, water=False):
+    """
+    Compute the total Van Hove function from partial Van Hove functions
+
+
+    Parameters
+    ----------
+    trj : mdtrj.Trajectory
+        trajectory on which partial vhf were calculated form
+    partial_dict : dict
+        dictionary containing partial vhf as a np.array.
+        Key is a tuple of len 2 with 2 atom types
+
+    Return
+    -------
+    total_grt : numpy.ndarray
+        Total Van Hove Function generated from addition of partial Van Hove Functions
+    """
+    unique_atoms = get_unique_atoms(trj)
+    all_atoms = [atom for atom in trj.topology.atoms]
+
+    norm_coeff = 0
+    dict_shape = list(partial_dict.values())[0][0].shape
+    total_grt = np.zeros(dict_shape)
+
+    for atom_pair in partial_dict.keys():
+        # checks if key is a tuple
+        if isinstance(atom_pair, tuple) == False:
+            raise ValueError("Dictionary key not valid. Must be a tuple.")
+        for atom in atom_pair:
+            # checks if the atoms in tuple pair are atom types
+            if type(atom) != type(unique_atoms[0]):
+                raise ValueError(
+                    "Dictionary key not valid. Must be type `MDTraj.Atom`."
+                )
+            # checks if atoms are in the trajectory
+            if atom not in all_atoms:
+                raise ValueError(
+                    f"Dictionary key not valid, `Atom` {atom} not in MDTraj trajectory."
+                )
+
+        # checks if key has two atoms
+        if len(atom_pair) != 2:
+            raise ValueError(
+                "Dictionary key not valid. Must only have 2 atoms per pair."
+            )
+
+        atom1 = atom_pair[0]
+        atom2 = atom_pair[1]
+        coeff = (
+            get_form_factor(element_name=f"{atom1.element.symbol}", water=False)
+            * get_form_factor(element_name=f"{atom2.element.symbol}", water=False)
+            * len(trj.topology.select(f"name {atom1.name}"))
+            / (trj.n_atoms)
+            * len(trj.topology.select(f"name {atom2.name}"))
+            / (trj.n_atoms)
+        )
+
+        normalized_pvhf = coeff * partial_dict[atom_pair]
+        norm_coeff += coeff
+        total_grt = np.add(total_grt, normalized_pvhf)
+
+    total_grt /= norm_coeff
+
+    return total_grt
