@@ -10,8 +10,7 @@ from scattering.van_hove import compute_partial_van_hove
 from scattering.van_hove import vhf_from_pvhf
 from itertools import combinations_with_replacement
 from scattering.utils.constants import get_form_factor
-from scattering.van_hove import get_unique_atoms
-
+from scattering.utils.utils import get_unique_atoms
 
 
 def test_van_hove():
@@ -86,7 +85,7 @@ def test_self_warning(parallel):
             parallel=parallel,
         )
 
-        
+
 def test_vhf_from_pvhf():
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
     unique_atoms = get_unique_atoms(trj)
@@ -94,7 +93,7 @@ def test_vhf_from_pvhf():
 
     # obtaining g_r_t from total func
     chunk_length = 20
-    r, t, g_r_t= compute_van_hove(trj, chunk_length=chunk_length)
+    r, t, g_r_t = compute_van_hove(trj, chunk_length=chunk_length)
     partial_dict = compute_van_hove(trj, chunk_length=chunk_length, partial=True)
     # obtating dict of np.array of pvhf
     partial_dict = {}

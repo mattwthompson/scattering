@@ -8,7 +8,7 @@ import mdtraj as md
 from progressbar import ProgressBar
 from itertools import combinations_with_replacement
 
-from scattering.utils.utils import get_dt
+from scattering.utils.utils import get_dt, get_unique_atoms
 from scattering.utils.constants import get_form_factor
 
 
@@ -25,7 +25,11 @@ def compute_van_hove(
     opt=True,
     partial=False,
 ):
-    """Compute the  van Hove function of a trajectory. Atom pairs referenced in partial van Hove functions are in alphabetical order. If specific ordering of atom pairs are needed, user should use compute_partial_van_hove then vhf_from_pvhf to compute total van Hove function
+    """Compute the  Van Hove function of a trajectory. Atom pairs
+    referenced in partial Van Hove functions are in alphabetical
+    order. If specific ordering of atom pairs are needed, user should
+    use compute_partial_van_hove then vhf_from_pvhf to compute total
+    Van Hove function.
 
     Parameters
     ----------
@@ -282,30 +286,6 @@ def compute_partial_van_hove(
         g_r_t += g_r_t_frame
 
     return r, g_r_t
-
-
-def get_unique_atoms(trj):
-    """Get mdtraj.Atom objects with unique `name`
-
-    Parameters
-    ----------
-    trj : MDTraj.trajectory
-        trajectory object of system
-
-    Returns
-    -------
-    unique_atoms : list
-        List of unique atoms in trajectory
-
-    """
-    seen_atoms = []
-    unique_atoms = []
-    for atom in trj.topology.atoms:
-        if atom.name not in seen_atoms:
-            seen_atoms.append(atom.name)
-            unique_atoms.append(atom)
-
-    return unique_atoms
 
 
 def vhf_from_pvhf(trj, partial_dict, water=False):
