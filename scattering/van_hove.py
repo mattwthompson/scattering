@@ -26,8 +26,12 @@ def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_c
         length of time between restarting averaging
     parallel : bool, default=True
         Use parallel implementation with `multiprocessing`
-    water : bool
-        use X-ray form factors for water that account for polarization
+    chunk_starts : array-like, shape=(n_chunks,), optional, default=[chunk_length * i for i in range(trj.n_frames//chunk_length)]
+        The first frame of each chunk to be analyzed.
+    cpu_count : int, optional, default=min(multiprocessing.cpu_count(), total system memory in GB)
+        The number of cpu process to run at once if parallel is True
+    water : bool, optional, default=False
+        Use X-ray form factors for water that account for polarization
     r_range : array-like, shape=(2,), optional, default=(0.0, 1.0)
         Minimum and maximum radii.
     bin_width : float, optional, default=0.005
@@ -35,8 +39,12 @@ def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_c
     n_bins : int, optional, default=None
         The number of bins. If specified, this will override the `bin_width`
          parameter.
-    self_correlation : bool, default=True
+    self_correlation : bool, optional, default=True
         Whether or not to include the self-self correlations
+    periodic : bool, optional, default=True
+        Whether or not to use periodic boundary conditions
+    opt : bool, optional, default=True
+        Use an optimized native library to compute the pair wise distances.
     n_concurrent_pairs : int, optional, default=100000
         number of atom pairs to compute at once
 
@@ -48,9 +56,11 @@ def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_c
         Van Hove function at each time and position
     """
 
+    if chunk_starts[-1] + chunk_length > trj.n_frames:
+        raise IndexError("A chunk of length {} at time {} would fall beyond the end of the given trajectory".format(chunk_length, chunk_starts[-1]))
+
     n_physical_atoms = len([a for a in trj.top.atoms if a.element.mass > 0])
     unique_elements = list(set([a.element for a in trj.top.atoms if a.element.mass > 0]))
-
     partial_dict = dict()
 
     for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
@@ -124,12 +134,16 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     ----------
     trj : mdtraj.Trajectory
         trajectory on which to compute the Van Hove function
-    chunk_length : int
+    chunk_length : int, defualt=10
         length of time between restarting averaging
     selection1 : str
         selection to be considered, in the style of MDTraj atom selection
     selection2 : str
         selection to be considered, in the style of MDTraj atom selection
+    chunk_starts : int array-like, shape=(n_chunks,), optional, default=[chunk_length * i for i in range(trj.n_frames//chunk_length)]
+        The first frame of each chunk to be analyzed.
+    cpu_count : int, optional, default=min(multiprocessing.cpu_count(), total system memory in GB)
+        The number of cpu process to run at once if parallel is True
     r_range : array-like, shape=(2,), optional, default=(0.0, 1.0)
         Minimum and maximum radii.
     bin_width : float, optional, default=0.005
@@ -139,8 +153,12 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
          parameter.
     self_correlation : bool, default=True
         Whether or not to include the self-self correlations
+    periodic : bool, optional, default=True
+        Whether or not to use periodic boundary conditions
     n_concurrent_pairs : int, default=100000
         number of atom pairs to compute at once
+    opt : bool, optional, default=True
+        Use an optimized native library to compute the pair wise distances.
     parallel : bool, default=True
         Use parallel implementation with `multiprocessing`
 
@@ -151,7 +169,11 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     g_r_t : numpy.ndarray
         Van Hove function at each time and position
     """
-    
+
+    for i in chunk_starts:
+        if i + chunk_length > trj.n_frames:
+            raise IndexError("A chunk of length {} at time {} would fall beyond the end of the given trajectory".format(chunk_length, i))
+
     unique_elements = (
         set([a.element for a in trj.atom_slice(trj.top.select(selection1)).top.atoms]),
         set([a.element for a in trj.atom_slice(trj.top.select(selection2)).top.atoms]),
@@ -176,15 +198,12 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     # Don't need to store it, but this serves to check that dt is constant
     dt = get_dt(trj)
 
-    cut_trj = trj.atom_slice(trj.top.select(str(selection1) + " or " + str(selection2)))
-    del trj
+    trj = trj.atom_slice(trj.top.select(str(selection1) + " or " + str(selection2)))
 
-    pairs = cut_trj.top.select_pairs(selection1=selection1, selection2=selection2)
+    pairs = trj.top.select_pairs(selection1=selection1, selection2=selection2)
 
     if chunk_starts is None:
-        chunk_starts = []
-        for i in range(cut_trj.n_frames//chunk_length):
-            chunk_starts.append(i*chunk_length)
+        chunk_starts = [chunk_length * i for i in range(trj.n_frames//chunk_length)]
     
     if parallel:
         if cpu_count == None:
@@ -192,7 +211,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
         result = []
         with multiprocessing.Pool(processes = cpu_count, maxtasksperchild = 1) as pool:
             pBar = ProgressBar(max_value=len(chunk_starts))
-            for output in pBar(pool.imap_unordered(_worker,_data(cut_trj, chunk_starts,pairs, chunk_length, 
+            for output in pBar(pool.imap_unordered(_worker,_data(trj, chunk_starts,pairs, chunk_length, 
                                                                  r_range, bin_width, n_bins, self_correlation, 
                                                                  periodic, n_concurrent_pairs, opt))):
                 result.append(output)
@@ -200,7 +219,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
             pool.join()
     else:
         result = []
-        data = _data(cut_trj, 
+        data = _data(trj, 
                      chunk_starts,
                      pairs,
                      chunk_length, 
