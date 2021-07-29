@@ -1,22 +1,26 @@
 import multiprocessing
-import itertools as it
-from os import PRIO_PGRP
 import warnings
 from psutil import virtual_memory
 from progressbar import ProgressBar
-
-
+import itertools as it
+from itertools import combinations_with_replacement
 import numpy as np
 import mdtraj as md
 
-from scattering.utils.utils import get_dt
+
+from scattering.utils.utils import get_dt, get_unique_atoms
 from scattering.utils.constants import get_form_factor
 
 
 def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_count=None, 
                      water=False, r_range=(0, 1.0), bin_width=0.005, n_bins=None, self_correlation=True, 
                      periodic=True, num_concurrent_paris=100000, opt=True, partial=False):
-    """Compute the partial van Hove function of a trajectory
+    """Compute the  Van Hove function of a trajectory. Atom pairs
+    referenced in partial Van Hove functions are in alphabetical
+    order. If specific ordering of atom pairs are needed, user should
+    use compute_partial_van_hove then vhf_from_pvhf to compute total
+    Van Hove function.
+
 
     Parameters
     ----------
@@ -47,6 +51,8 @@ def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_c
         Use an optimized native library to compute the pair wise distances.
     n_concurrent_pairs : int, optional, default=100000
         number of atom pairs to compute at once
+    partial : bool, default = False
+        Whether or not to return a dictionary including partial Van Hove function.
 
     Returns
     -------
@@ -60,7 +66,9 @@ def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_c
         raise IndexError("A chunk of length {} at time {} would fall beyond the end of the given trajectory".format(chunk_length, chunk_starts[-1]))
 
     n_physical_atoms = len([a for a in trj.top.atoms if a.element.mass > 0])
+
     unique_elements = list(set([a.element for a in trj.top.atoms if a.element.mass > 0]))
+
     partial_dict = dict()
 
     for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
@@ -101,8 +109,12 @@ def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_c
 
     for key, val in partial_dict.items():
         elem1, elem2 = key
-        concentration1 = trj.atom_slice(trj.top.select(elem1)).n_atoms / n_physical_atoms
-        concentration2 = trj.atom_slice(trj.top.select(elem2)).n_atoms / n_physical_atoms
+        concentration1 = (
+            trj.atom_slice(trj.top.select(elem1)).n_atoms / n_physical_atoms
+        )
+        concentration2 = (
+            trj.atom_slice(trj.top.select(elem2)).n_atoms / n_physical_atoms
+        )
         form_factor1 = get_form_factor(element_name=elem1.split()[1], water=water)
         form_factor2 = get_form_factor(element_name=elem2.split()[1], water=water)
 
@@ -125,9 +137,11 @@ def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_c
     return r, t, g_r_t_final
 
 
+
 def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=None, chunk_starts=None, 
                              cpu_count=None, r_range=(0, 1.0), bin_width=0.005, n_bins=200, self_correlation=True, 
                              periodic=True, n_concurrent_pairs=100000, opt=True, parallel=True):
+
     """Compute the partial van Hove function of a trajectory
 
     Parameters
@@ -174,6 +188,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
         if i + chunk_length > trj.n_frames:
             raise IndexError("A chunk of length {} at time {} would fall beyond the end of the given trajectory".format(chunk_length, i))
 
+
     unique_elements = (
         set([a.element for a in trj.atom_slice(trj.top.select(selection1)).top.atoms]),
         set([a.element for a in trj.atom_slice(trj.top.select(selection2)).top.atoms]),
@@ -181,10 +196,11 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
 
     if any([len(val) > 1 for val in unique_elements]):
         raise UserWarning(
-            'Multiple elements found in a selection(s). Results may not be '
-            'direcitly comprable to scattering experiments.'
+            "Multiple elements found in a selection(s). Results may not be "
+            "direcitly comprable to scattering experiments."
         )
-    
+
+  
     # Check if pair is monatomic
     # If not, do not calculate self correlations
     if selection1 != selection2 and self_correlation:
@@ -194,7 +210,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
                 )
         )
         self_correlation = False
-    
+
     # Don't need to store it, but this serves to check that dt is constant
     dt = get_dt(trj)
 
@@ -247,6 +263,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     
     return r, g_r_t
 
+
 def _worker(input_list):
     trj, pairs, chunk_length, r_range, bin_width, n_bins, self_correlation, periodic, n_concurrent_pairs, opt = input_list
     
@@ -286,3 +303,69 @@ def _data(trj, chunk_starts, pairs, chunk_length,
             n_concurrent_pairs,
             opt, 
         ])
+
+def vhf_from_pvhf(trj, partial_dict, water=False):
+    """
+    Compute the total Van Hove function from partial Van Hove functions
+
+
+    Parameters
+    ----------
+    trj : mdtrj.Trajectory
+        trajectory on which partial vhf were calculated form
+    partial_dict : dict
+        dictionary containing partial vhf as a np.array.
+        Key is a tuple of len 2 with 2 atom types
+
+    Return
+    -------
+    total_grt : numpy.ndarray
+        Total Van Hove Function generated from addition of partial Van Hove Functions
+    """
+    unique_atoms = get_unique_atoms(trj)
+    all_atoms = [atom for atom in trj.topology.atoms]
+
+    norm_coeff = 0
+    dict_shape = list(partial_dict.values())[0][0].shape
+    total_grt = np.zeros(dict_shape)
+
+    for atom_pair in partial_dict.keys():
+        # checks if key is a tuple
+        if isinstance(atom_pair, tuple) == False:
+            raise ValueError("Dictionary key not valid. Must be a tuple.")
+        for atom in atom_pair:
+            # checks if the atoms in tuple pair are atom types
+            if type(atom) != type(unique_atoms[0]):
+                raise ValueError(
+                    "Dictionary key not valid. Must be type `MDTraj.Atom`."
+                )
+            # checks if atoms are in the trajectory
+            if atom not in all_atoms:
+                raise ValueError(
+                    f"Dictionary key not valid, `Atom` {atom} not in MDTraj trajectory."
+                )
+
+        # checks if key has two atoms
+        if len(atom_pair) != 2:
+            raise ValueError(
+                "Dictionary key not valid. Must only have 2 atoms per pair."
+            )
+
+        atom1 = atom_pair[0]
+        atom2 = atom_pair[1]
+        coeff = (
+            get_form_factor(element_name=f"{atom1.element.symbol}", water=False)
+            * get_form_factor(element_name=f"{atom2.element.symbol}", water=False)
+            * len(trj.topology.select(f"name {atom1.name}"))
+            / (trj.n_atoms)
+            * len(trj.topology.select(f"name {atom2.name}"))
+            / (trj.n_atoms)
+        )
+
+        normalized_pvhf = coeff * partial_dict[atom_pair]
+        norm_coeff += coeff
+        total_grt = np.add(total_grt, normalized_pvhf)
+
+    total_grt /= norm_coeff
+
+    return total_grt

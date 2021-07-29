@@ -1,15 +1,23 @@
 import numpy as np
+import pytest
 import matplotlib.pyplot as plt
 import mdtraj as md
+import pytest
 
-from scattering.van_hove import compute_van_hove
+from scattering.van_hove import (
+    compute_van_hove,
+    compute_partial_van_hove,
+    compute_partial_van_hove,
+    vhf_from_pvhf,
+)
 from scattering.utils.io import get_fn
+from itertools import combinations_with_replacement
+from scattering.utils.constants import get_form_factor
+from scattering.utils.utils import get_unique_atoms
+
 
 def test_van_hove():
-    trj = md.load(
-        get_fn('spce.xtc'),
-        top=get_fn('spce.gro')
-    )
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
 
     chunk_length = 2
 
@@ -24,26 +32,22 @@ def test_van_hove():
 
     fig, ax = plt.subplots()
     for i in range(len(t)):
-        ax.plot(r, g_r_t[i], '.-', label=t[i])
+        ax.plot(r, g_r_t[i], ".-", label=t[i])
     ax.set_ylim((0, 3))
     ax.legend()
-    fig.savefig('vhf.pdf')
+    fig.savefig("vhf.pdf")
+
 
 def test_serial_van_hove():
-    trj = md.load(
-        get_fn('spce.xtc'),
-        top=get_fn('spce.gro')
-    )
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
 
     chunk_length = 2
 
     r, t, g_r_t = compute_van_hove(trj, chunk_length=chunk_length, parallel=False)
 
+
 def test_van_hove_equal():
-    trj = md.load(
-        get_fn('spce.xtc'),
-        top=get_fn('spce.gro')
-    )
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
 
     chunk_length = 2
 
@@ -53,3 +57,144 @@ def test_van_hove_equal():
     assert np.allclose(r_p, r_s)
     assert np.allclose(t_p, t_s)
     assert np.allclose(g_r_t_p, g_r_t_s)
+
+
+def test_self_partial_warning():
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+
+    chunk_length = 2
+
+    with pytest.warns(UserWarning, match=r"Partial VHF"):
+        compute_partial_van_hove(
+            trj,
+            chunk_length=chunk_length,
+            selection1="name O",
+            selection2="name H",
+            self_correlation=True,
+        )
+
+
+@pytest.mark.parametrize("parallel", [True, False])
+def test_self_warning(parallel):
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+
+    chunk_length = 2
+
+    with pytest.warns(UserWarning, match=r"Total VHF"):
+        compute_van_hove(
+            trj,
+            chunk_length=chunk_length,
+            self_correlation=True,
+            parallel=parallel,
+        )
+
+
+def test_vhf_from_pvhf():
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+    unique_atoms = get_unique_atoms(trj)
+    tuples_combination = combinations_with_replacement(unique_atoms, 2)
+
+    # obtaining g_r_t from total func
+    chunk_length = 20
+    r, t, g_r_t = compute_van_hove(trj, chunk_length=chunk_length)
+    partial_dict = compute_van_hove(trj, chunk_length=chunk_length, partial=True)
+    # obtating dict of np.array of pvhf
+    partial_dict = {}
+
+    for pairs in tuples_combination:
+        pair1 = pairs[0]
+        pair2 = pairs[1]
+        # Set in alphabetical order
+        if pairs[0].name > pairs[1].name:
+            pair2 = pairs[0]
+            pair1 = pairs[1]
+
+        x = compute_partial_van_hove(
+            trj,
+            chunk_length=chunk_length,
+            selection1=f"name {pair1.name}",
+            selection2=f"name {pair2.name}",
+        )
+        partial_dict[pairs] = x[1]
+
+    # obtaining total_grt from partial
+    total_g_r_t = vhf_from_pvhf(trj, partial_dict)
+
+    assert np.allclose(g_r_t, total_g_r_t)
+
+
+def test_pvhf_error_2_atoms_per_pair():
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+    unique_atoms = get_unique_atoms(trj)
+
+    partial_dict = {}
+    x = compute_partial_van_hove(
+        trj,
+        chunk_length=20,
+        selection1="name O",
+        selection2="name O",
+    )
+    partial_dict[(unique_atoms[0], unique_atoms[1], unique_atoms[1])] = x[1]
+
+    with pytest.raises(
+        ValueError, match="Dictionary key not valid. Must only have 2 atoms per pair"
+    ):
+        vhf_from_pvhf(trj, partial_dict)
+
+
+def test_pvhf_error_atoms_in_trj():
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+    unique_atoms = get_unique_atoms(trj)
+    atom = md.core.topology.Atom(
+        name="Na", element=md.core.element.sodium, index=0, residue=1
+    )
+
+    partial_dict = {}
+    x = compute_partial_van_hove(
+        trj,
+        chunk_length=20,
+        selection1="name O",
+        selection2="name O",
+    )
+    partial_dict[(atom, unique_atoms[0])] = x[1]
+
+    with pytest.raises(
+        ValueError, match="Dictionary key not valid, `Atom`"
+    ):
+        vhf_from_pvhf(trj, partial_dict)
+
+
+def test_pvhf_error_is_atom_type():
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+    unique_atoms = get_unique_atoms(trj)
+
+    partial_dict = {}
+    x = compute_partial_van_hove(
+        trj,
+        chunk_length=20,
+        selection1="name O",
+        selection2="name O",
+    )
+    partial_dict[("H", "O")] = x[1]
+
+    with pytest.raises(
+        ValueError, match="Dictionary key not valid. Must be type"
+    ):
+        vhf_from_pvhf(trj, partial_dict)
+
+
+def test_pvhf_error_is_tuple():
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+    unique_atoms = get_unique_atoms(trj)
+    key = frozenset({unique_atoms[0], unique_atoms[1]})
+    partial_dict = {}
+    x = compute_partial_van_hove(
+        trj,
+        chunk_length=20,
+        selection1="name O",
+        selection2="name O",
+    )
+    partial_dict[key] = x[1]
+
+    with pytest.raises(ValueError, match="Dictionary key not valid. Must be a tuple"):
+        vhf_from_pvhf(trj, partial_dict)
