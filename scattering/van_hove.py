@@ -218,8 +218,8 @@ def compute_partial_van_hove(
     """
 
     if chunk_starts is None:
-        chunk_starts = [chunk_length * i for i in range(trj.n_frames//chunk_length)]
-        
+        chunk_starts = [chunk_length * i for i in range(trj.n_frames // chunk_length)]
+
     for i in chunk_starts:
         if i + chunk_length > trj.n_frames:
             raise IndexError(
@@ -256,7 +256,6 @@ def compute_partial_van_hove(
 
     pairs = trj.top.select_pairs(selection1=selection1, selection2=selection2)
 
-    
     if parallel:
         if cpu_count == None:
             cpu_count = min(
