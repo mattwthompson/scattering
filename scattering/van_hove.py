@@ -2,7 +2,6 @@ import multiprocessing
 import warnings
 from psutil import virtual_memory
 from progressbar import ProgressBar
-import itertools as it
 from itertools import combinations_with_replacement
 import numpy as np
 import mdtraj as md
@@ -71,7 +70,7 @@ def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_c
 
     partial_dict = dict()
 
-    for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
+    for elem1, elem2 in combinations_with_replacement(unique_elements[::-1], 2):
         # Add a bool to check if self-correlations should be analyzed
         self_bool = self_correlation
         if elem1 != elem2 and self_correlation:
@@ -148,7 +147,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     ----------
     trj : mdtraj.Trajectory
         trajectory on which to compute the Van Hove function
-    chunk_length : int, defualt=10
+    chunk_length : int, default=10
         length of time between restarting averaging
     selection1 : str
         selection to be considered, in the style of MDTraj atom selection
@@ -157,7 +156,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     chunk_starts : int array-like, shape=(n_chunks,), optional, default=[chunk_length * i for i in range(trj.n_frames//chunk_length)]
         The first frame of each chunk to be analyzed.
     cpu_count : int, optional, default=min(multiprocessing.cpu_count(), total system memory in GB)
-        The number of cpu process to run at once if parallel is True
+        The number of cpu processes to simultaneously run if parallel=True
     r_range : array-like, shape=(2,), optional, default=(0.0, 1.0)
         Minimum and maximum radii.
     bin_width : float, optional, default=0.005
@@ -184,6 +183,9 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
         Van Hove function at each time and position
     """
 
+    if chunk_starts is None:
+        chunk_starts = [chunk_length * i for i in range(trj.n_frames//chunk_length)]
+        
     for i in chunk_starts:
         if i + chunk_length > trj.n_frames:
             raise IndexError("A chunk of length {} at time {} would fall beyond the end of the given trajectory".format(chunk_length, i))
@@ -218,8 +220,6 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
 
     pairs = trj.top.select_pairs(selection1=selection1, selection2=selection2)
 
-    if chunk_starts is None:
-        chunk_starts = [chunk_length * i for i in range(trj.n_frames//chunk_length)]
     
     if parallel:
         if cpu_count == None:
