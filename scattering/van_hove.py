@@ -11,9 +11,22 @@ from scattering.utils.utils import get_dt, get_unique_atoms
 from scattering.utils.constants import get_form_factor
 
 
-def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_count=None, 
-                     water=False, r_range=(0, 1.0), bin_width=0.005, n_bins=None, self_correlation=True, 
-                     periodic=True, num_concurrent_paris=100000, opt=True, partial=False):
+def compute_van_hove(
+    trj,
+    chunk_length,
+    parallel=False,
+    chunk_starts=None,
+    cpu_count=None,
+    water=False,
+    r_range=(0, 1.0),
+    bin_width=0.005,
+    n_bins=None,
+    self_correlation=True,
+    periodic=True,
+    num_concurrent_paris=100000,
+    opt=True,
+    partial=False,
+):
     """Compute the  Van Hove function of a trajectory. Atom pairs
     referenced in partial Van Hove functions are in alphabetical
     order. If specific ordering of atom pairs are needed, user should
@@ -62,11 +75,17 @@ def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_c
     """
 
     if chunk_starts[-1] + chunk_length > trj.n_frames:
-        raise IndexError("A chunk of length {} at time {} would fall beyond the end of the given trajectory".format(chunk_length, chunk_starts[-1]))
+        raise IndexError(
+            "A chunk of length {} at time {} would fall beyond the end of the given trajectory".format(
+                chunk_length, chunk_starts[-1]
+            )
+        )
 
     n_physical_atoms = len([a for a in trj.top.atoms if a.element.mass > 0])
 
-    unique_elements = list(set([a.element for a in trj.top.atoms if a.element.mass > 0]))
+    unique_elements = list(
+        set([a.element for a in trj.top.atoms if a.element.mass > 0])
+    )
 
     partial_dict = dict()
 
@@ -81,24 +100,27 @@ def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_c
                 )
             )
 
-        print('doing {0} and {1} ...'.format(elem1, elem2))
-        r, g_r_t_partial = compute_partial_van_hove(trj=trj,
-                                                    chunk_length=chunk_length,
-                                                    selection1='element {}'.format(elem1.symbol),
-                                                    selection2='element {}'.format(elem2.symbol),
-                                                    chunk_starts=chunk_starts,
-                                                    cpu_count=cpu_count,
-                                                    r_range=r_range,
-                                                    bin_width=bin_width,
-                                                    n_bins=n_bins,
-                                                    self_correlation=self_bool,
-                                                    periodic=periodic,
-                                                    n_concurrent_pairs=num_concurrent_paris,
-                                                    opt=opt,
-                                                    parallel=parallel,
-                                                    )
+        print("doing {0} and {1} ...".format(elem1, elem2))
+        r, g_r_t_partial = compute_partial_van_hove(
+            trj=trj,
+            chunk_length=chunk_length,
+            selection1="element {}".format(elem1.symbol),
+            selection2="element {}".format(elem2.symbol),
+            chunk_starts=chunk_starts,
+            cpu_count=cpu_count,
+            r_range=r_range,
+            bin_width=bin_width,
+            n_bins=n_bins,
+            self_correlation=self_bool,
+            periodic=periodic,
+            n_concurrent_pairs=num_concurrent_paris,
+            opt=opt,
+            parallel=parallel,
+        )
 
-        partial_dict[('element {}'.format(elem1.symbol), 'element {}'.format(elem2.symbol))] = g_r_t_partial
+        partial_dict[
+            ("element {}".format(elem1.symbol), "element {}".format(elem2.symbol))
+        ] = g_r_t_partial
 
     if partial:
         return partial_dict
@@ -136,10 +158,22 @@ def compute_van_hove(trj, chunk_length, parallel=False, chunk_starts=None, cpu_c
     return r, t, g_r_t_final
 
 
-
-def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=None, chunk_starts=None, 
-                             cpu_count=None, r_range=(0, 1.0), bin_width=0.005, n_bins=200, self_correlation=True, 
-                             periodic=True, n_concurrent_pairs=100000, opt=True, parallel=True):
+def compute_partial_van_hove(
+    trj,
+    chunk_length=10,
+    selection1=None,
+    selection2=None,
+    chunk_starts=None,
+    cpu_count=None,
+    r_range=(0, 1.0),
+    bin_width=0.005,
+    n_bins=200,
+    self_correlation=True,
+    periodic=True,
+    n_concurrent_pairs=100000,
+    opt=True,
+    parallel=True,
+):
 
     """Compute the partial van Hove function of a trajectory
 
@@ -188,8 +222,11 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
         
     for i in chunk_starts:
         if i + chunk_length > trj.n_frames:
-            raise IndexError("A chunk of length {} at time {} would fall beyond the end of the given trajectory".format(chunk_length, i))
-
+            raise IndexError(
+                "A chunk of length {} at time {} would fall beyond the end of the given trajectory".format(
+                    chunk_length, i
+                )
+            )
 
     unique_elements = (
         set([a.element for a in trj.atom_slice(trj.top.select(selection1)).top.atoms]),
@@ -202,14 +239,13 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
             "direcitly comprable to scattering experiments."
         )
 
-  
     # Check if pair is monatomic
     # If not, do not calculate self correlations
     if selection1 != selection2 and self_correlation:
         warnings.warn(
             "Partial VHF calculation: No self-correlations for {} and {}, setting `self_correlation` to `False`.".format(
                 selection1, selection2
-                )
+            )
         )
         self_correlation = False
 
@@ -223,55 +259,84 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     
     if parallel:
         if cpu_count == None:
-            cpu_count = min(multiprocessing.cpu_count(), virtual_memory().total // 1024**3)
+            cpu_count = min(
+                multiprocessing.cpu_count(), virtual_memory().total // 1024 ** 3
+            )
         result = []
-        with multiprocessing.Pool(processes = cpu_count, maxtasksperchild = 1) as pool:
+        with multiprocessing.Pool(processes=cpu_count, maxtasksperchild=1) as pool:
             pBar = ProgressBar(max_value=len(chunk_starts))
-            for output in pBar(pool.imap_unordered(_worker,_data(trj, chunk_starts,pairs, chunk_length, 
-                                                                 r_range, bin_width, n_bins, self_correlation, 
-                                                                 periodic, n_concurrent_pairs, opt))):
+            for output in pBar(
+                pool.imap_unordered(
+                    _worker,
+                    _data(
+                        trj,
+                        chunk_starts,
+                        pairs,
+                        chunk_length,
+                        r_range,
+                        bin_width,
+                        n_bins,
+                        self_correlation,
+                        periodic,
+                        n_concurrent_pairs,
+                        opt,
+                    ),
+                )
+            ):
                 result.append(output)
             pool.terminate()
             pool.join()
     else:
         result = []
-        data = _data(trj, 
-                     chunk_starts,
-                     pairs,
-                     chunk_length, 
-                     r_range, 
-                     bin_width, 
-                     n_bins, 
-                     self_correlation, 
-                     periodic, 
-                     n_concurrent_pairs,
-                     opt, 
-                     )
+        data = _data(
+            trj,
+            chunk_starts,
+            pairs,
+            chunk_length,
+            r_range,
+            bin_width,
+            n_bins,
+            self_correlation,
+            periodic,
+            n_concurrent_pairs,
+            opt,
+        )
         pBar = ProgressBar(max_value=len(chunk_starts))
         for i in pBar(data, max_value=len(chunk_starts)):
             result.append(_worker(data))
-    
+
     r = []
     for val in result:
         r.append(val[0])
     r = np.mean(r, axis=0)
-    
+
     g_r_t = []
     for val in result:
         g_r_t.append(val[1])
     g_r_t = np.mean(g_r_t, axis=0)
-    
+
     return r, g_r_t
 
 
 def _worker(input_list):
-    trj, pairs, chunk_length, r_range, bin_width, n_bins, self_correlation, periodic, n_concurrent_pairs, opt = input_list
-    
+    (
+        trj,
+        pairs,
+        chunk_length,
+        r_range,
+        bin_width,
+        n_bins,
+        self_correlation,
+        periodic,
+        n_concurrent_pairs,
+        opt,
+    ) = input_list
+
     times = list()
-   
+
     for j in range(chunk_length):
-        times.append([0,j])
-    
+        times.append([0, j])
+
     r, g_r_t_frame = md.compute_rdf_t(
         traj=trj,
         pairs=pairs,
@@ -287,22 +352,36 @@ def _worker(input_list):
     )
     return [r, g_r_t_frame]
 
-def _data(trj, chunk_starts, pairs, chunk_length, 
-          r_range, bin_width, n_bins, self_correlation, 
-          periodic, n_concurrent_pairs, opt):
+
+def _data(
+    trj,
+    chunk_starts,
+    pairs,
+    chunk_length,
+    r_range,
+    bin_width,
+    n_bins,
+    self_correlation,
+    periodic,
+    n_concurrent_pairs,
+    opt,
+):
     for start in chunk_starts:
-        yield ([ 
-            trj[start:start+chunk_length], 
-            pairs,
-            chunk_length, 
-            r_range, 
-            bin_width, 
-            n_bins, 
-            self_correlation, 
-            periodic, 
-            n_concurrent_pairs,
-            opt, 
-        ])
+        yield (
+            [
+                trj[start : start + chunk_length],
+                pairs,
+                chunk_length,
+                r_range,
+                bin_width,
+                n_bins,
+                self_correlation,
+                periodic,
+                n_concurrent_pairs,
+                opt,
+            ]
+        )
+
 
 def vhf_from_pvhf(trj, partial_dict, water=False):
     """

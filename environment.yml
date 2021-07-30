@@ -1,8 +1,10 @@
 name: scattering
 channels:
  - conda-forge
+ - anaconda
 dependencies:
  - mdtraj>=1.9.6
  - numpy
  - progressbar2
  - scipy
+ - psutil
