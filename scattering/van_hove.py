@@ -73,6 +73,8 @@ def compute_van_hove(
     g_r_t : numpy.ndarray
         Van Hove function at each time and position
     """
+    if chunk_starts is None:
+        chunk_starts = [chunk_length * i for i in range(trj.n_frames // chunk_length)]
 
     if chunk_starts[-1] + chunk_length > trj.n_frames:
         raise IndexError(
@@ -302,7 +304,7 @@ def compute_partial_van_hove(
         )
         pBar = ProgressBar(max_value=len(chunk_starts))
         for i in pBar(data, max_value=len(chunk_starts)):
-            result.append(_worker(data))
+            result.append(_worker(i))
 
     r = []
     for val in result:
@@ -318,6 +320,7 @@ def compute_partial_van_hove(
 
 
 def _worker(input_list):
+
     (
         trj,
         pairs,
