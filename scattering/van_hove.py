@@ -14,7 +14,7 @@ from scattering.utils.constants import get_form_factor
 def compute_van_hove(
     trj,
     chunk_length,
-    parallel=False,
+    parallel=True,
     chunk_starts=None,
     cpu_count=None,
     water=False,
@@ -92,6 +92,11 @@ def compute_van_hove(
     partial_dict = dict()
 
     for elem1, elem2 in combinations_with_replacement(unique_elements[::-1], 2):
+        if elem1.symbol > elem2.symbol:
+            temp = elem1
+            elem1 = elem2
+            elem2 = temp
+
         # Add a bool to check if self-correlations should be analyzed
         self_bool = self_correlation
         if elem1 != elem2 and self_correlation:
