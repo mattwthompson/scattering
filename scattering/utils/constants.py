@@ -15,9 +15,8 @@ def get_form_factor(element_name=None, q=None, method="atomic", water=None):
     if element_name is not None:
         elem = Element.getBySymbol(element_name)
 
-    #warnings.warn('Estimating atomic form factor as atomic number')
-    
     if method == "atomic":
+        warnings.warn('Estimating atomic form factor as atomic number')
         form_factor = elem.atomic_number
     elif method == "cromer-mann":
         form_factor = cromermann.fxrayatq(elem.symbol, q)
