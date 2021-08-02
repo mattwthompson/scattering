@@ -37,3 +37,16 @@ def test_invalid_sq_weigting_factor():
         Q, S = structure_factor(
             trj, Q_range=(0.5, 200), framewise_rdf=False, weighting_factor="invalid"
         )
+
+def test_with_master():
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))[:100]
+
+    Q, S = structure_factor(
+        trj, Q_range=(0.5, 200), framewise_rdf=False, weighting_factor="fz"
+    )
+
+    master_Q = np.loadtxt(get_fn("Q.txt"))
+    master_S = np.loadtxt(get_fn("S.txt"))
+
+    assert np.allclose(Q, master_Q)
+    assert np.allclose(S, master_S)
