@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import mdtraj as md
 import pytest
 
-from scattering.scattering import structure_factor
+from scattering.scattering import structure_factor, partial_structure_factor
 from scattering.utils.io import get_fn
 
 
@@ -50,3 +50,10 @@ def test_with_master():
 
     assert np.allclose(Q, master_Q)
     assert np.allclose(S, master_S, atol=1e-2)
+
+def test_partial():
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))[:100]
+
+    Q_OO, S_OO = partial_structure_factor(
+        trj, selection1="element O", selection2="element O", Q_range=(0.5, 200), framewise_rdf=False,
+    )

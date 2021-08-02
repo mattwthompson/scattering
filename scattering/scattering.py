@@ -95,7 +95,7 @@ def structure_factor(
                                                                L=L,
                                                                n_points=n_points,
                                                                framewise_rdf=framewise_rdf,
-                                                               )
+                                                               )[1]
 
     print("Computing normalization ... ")
     for i, q in enumerate(Q):
@@ -186,13 +186,13 @@ def partial_structure_factor(trj, selection1, selection2, Q_range=(0.5, 50), L=N
             trj, pairs=pairs, r_range=(0, L / 2), bin_width=0.001
         )
 
-    sq = np.zeros((len(Q)))
+    S = np.zeros((len(Q)))
     for i, q in enumerate(Q):
         # Fourier transform of g(r)        
         integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
-        sq[i] = integral
+        S[i] = integral
 
-    return sq
+    return Q, S
 
 
 def compute_dynamic_rdf(trj):
