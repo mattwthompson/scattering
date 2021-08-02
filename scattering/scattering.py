@@ -3,7 +3,6 @@ from progressbar import ProgressBar
 
 import mdtraj as md
 import numpy as np
-import time
 from scipy.integrate import simps
 
 from scattering.utils.utils import rdf_by_frame
