@@ -3,6 +3,7 @@ from progressbar import ProgressBar
 
 import mdtraj as md
 import numpy as np
+import time
 from scipy.integrate import simps
 
 from scattering.utils.utils import rdf_by_frame
@@ -172,28 +173,27 @@ def partial_structure_factor(trj, selection1, selection2, Q_range=(0.5, 50), L=N
 
     Q = np.logspace(np.log10(Q_range[0]), np.log10(Q_range[1]), num=n_points)
 
-    for i, q in enumerate(Q):
-        print(i)
-        num = 0
-        pairs = trj.top.select_pairs(
-            selection1=selection1,
-            selection2=selection2,
+    pairs = trj.top.select_pairs(
+        selection1=selection1,
+        selection2=selection2,
+    )
+
+    if framewise_rdf:
+        r, g_r = rdf_by_frame(
+            trj, pairs=pairs, r_range=(0, L / 2), bin_width=0.001
+        )
+    else:
+        r, g_r = md.compute_rdf(
+            trj, pairs=pairs, r_range=(0, L / 2), bin_width=0.001
         )
 
-        if framewise_rdf:
-            r, g_r = rdf_by_frame(
-                trj, pairs=pairs, r_range=(0, L / 2), bin_width=0.001
-            )
-        else:
-            r, g_r = md.compute_rdf(
-                trj, pairs=pairs, r_range=(0, L / 2), bin_width=0.001
-            )
-
+    sq = np.zeros((len(Q)))
+    for i, q in enumerate(Q):
         # Fourier transform of g(r)        
         integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
-        num += integral
+        sq[i] = integral
 
-    return num
+    return sq
 
 
 def compute_dynamic_rdf(trj):
