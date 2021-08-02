@@ -24,7 +24,7 @@ def structure_factor(
     """Compute the structure factor through a fourier transform of
     the radial distribution function.
 
-    The consdered trajectory must include valid elements.
+    The considered trajectory must include valid elements.
 
     The computed structure factor is only valid for certain values of Q. The
     lowest value of Q that can sufficiently be described by a box of
@@ -72,7 +72,7 @@ def structure_factor(
     elements = set([a.element for a in top.atoms])
 
     compositions = dict()
-    rdfs = dict()
+    sq = dict()
 
     Q = np.logspace(np.log10(Q_range[0]), np.log10(Q_range[1]), num=n_points)
     S = np.zeros(shape=(len(Q)))
@@ -82,6 +82,22 @@ def structure_factor(
             len(top.select("element {}".format(elem.symbol))) / trj.n_atoms
         )
 
+    # Compute partial structure factors
+    print("Computing structure factors ...")
+    for (elem1, elem2) in it.product(elements, repeat=2):
+        e1 = elem1.symbol
+        e2 = elem2.symbol
+
+        sq["{0}{1}".format(e1, e2)] = partial_structure_factor(trj=trj,
+                                                               selection1=f"element {e1}",
+                                                               selection2=f"element {e2}",
+                                                               Q_range=Q_range,
+                                                               L=L,
+                                                               n_points=n_points,
+                                                               framewise_rdf=framewise_rdf,
+                                                               )
+
+    print("Computing normalization ... ")
     for i, q in enumerate(Q):
         num = 0
         denom = 0
@@ -101,23 +117,7 @@ def structure_factor(
             x_a = compositions[e1]
             x_b = compositions[e2]
 
-            try:
-                g_r = rdfs["{0}{1}".format(e1, e2)]
-            except KeyError:
-                pairs = top.select_pairs(
-                    selection1="element {}".format(e1),
-                    selection2="element {}".format(e2),
-                )
-                if framewise_rdf:
-                    r, g_r = rdf_by_frame(
-                        trj, pairs=pairs, r_range=(0, L / 2), bin_width=0.001
-                    )
-                else:
-                    r, g_r = md.compute_rdf(
-                        trj, pairs=pairs, r_range=(0, L / 2), bin_width=0.001
-                    )
-                rdfs["{0}{1}".format(e1, e2)] = g_r
-            integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
+            integral = sq[f"{e1}{e2}"][i]
 
             coefficient = x_a * x_b * f_a * f_b
             pre_factor = 4 * np.pi * rho
@@ -130,6 +130,70 @@ def structure_factor(
 
         S[i] = num / denom
     return Q, S
+
+
+def partial_structure_factor(trj, selection1, selection2, Q_range=(0.5, 50), L=None, n_points=1000, framewise_rdf=False):
+    """Compute the structure factor between a pair of atoms
+
+    The considered trajectory must include valid elements.
+
+    The computed structure factor is only valid for certain values of Q. The
+    lowest value of Q that can sufficiently be described by a box of
+    characteristic length `L` is `2 * pi / (L / 2)`.
+
+    Parameters
+    ----------
+    trj : mdtraj.Trajectory
+        A trajectory for which the structure factor is to be computed.
+    selection1 : str
+        selection to be considered, in the style of MDTraj atom selection
+    selection2 : str
+        selection to be considered, in the style of MDTraj atom selection
+    Q_range : list or np.ndarray, default=(0.5, 50)
+        Minimum and maximum Values of the scattering vector, in `1/nm`, to be
+        consdered.
+    L : float, optional, default=None
+        Unitcell length of chemical system, opt. If None, set to np.min(trj.unitcell_lengths)
+    n_points : int, default=1000
+    framewise_rdf : boolean, default=False
+        If True, computes the rdf frame-by-frame. This can be useful for
+        managing memory in large systems.
+
+    Returns
+    -------
+    Q : np.ndarray
+        The values of the scattering vector, in `1/nm`, that was considered.
+    S : np.ndarray
+        The structure factor of the trajectory
+
+    """
+    if not L:
+        L = np.min(trj.unitcell_lengths)
+
+    Q = np.logspace(np.log10(Q_range[0]), np.log10(Q_range[1]), num=n_points)
+
+    for i, q in enumerate(Q):
+        print(i)
+        num = 0
+        pairs = trj.top.select_pairs(
+            selection1=selection1,
+            selection2=selection2,
+        )
+
+        if framewise_rdf:
+            r, g_r = rdf_by_frame(
+                trj, pairs=pairs, r_range=(0, L / 2), bin_width=0.001
+            )
+        else:
+            r, g_r = md.compute_rdf(
+                trj, pairs=pairs, r_range=(0, L / 2), bin_width=0.001
+            )
+
+        # Fourier transform of g(r)        
+        integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
+        num += integral
+
+    return num
 
 
 def compute_dynamic_rdf(trj):
