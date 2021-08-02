@@ -23,7 +23,7 @@ def compute_van_hove(
     n_bins=None,
     self_correlation=True,
     periodic=True,
-    num_concurrent_paris=100000,
+    n_concurrent_pairs=100000,
     opt=True,
     partial=False,
 ):
@@ -120,7 +120,7 @@ def compute_van_hove(
             n_bins=n_bins,
             self_correlation=self_bool,
             periodic=periodic,
-            n_concurrent_pairs=num_concurrent_paris,
+            n_concurrent_pairs=n_concurrent_pairs,
             opt=opt,
             parallel=parallel,
         )
