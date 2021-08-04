@@ -257,11 +257,8 @@ def compute_partial_van_hove(
         self_correlation = False
 
     # Don't need to store it, but this serves to check that dt is constant
+    # Question, could we just call get_dt(~) here instead of setting the variable dt = get_dt(~)
     dt = get_dt(trj)
-
-    trj = trj.atom_slice(trj.top.select(str(selection1) + " or " + str(selection2)))
-
-    pairs = trj.top.select_pairs(selection1=selection1, selection2=selection2)
 
     if parallel:
         if cpu_count == None:
@@ -277,7 +274,8 @@ def compute_partial_van_hove(
                     _data(
                         trj,
                         chunk_starts,
-                        pairs,
+                        selection1,
+                        selection2,
                         chunk_length,
                         r_range,
                         bin_width,
@@ -297,7 +295,8 @@ def compute_partial_van_hove(
         data = _data(
             trj,
             chunk_starts,
-            pairs,
+            selection1,
+            selection2,
             chunk_length,
             r_range,
             bin_width,
@@ -363,7 +362,8 @@ def _worker(input_list):
 def _data(
     trj,
     chunk_starts,
-    pairs,
+    selection1,
+    selection2,
     chunk_length,
     r_range,
     bin_width,
@@ -374,9 +374,12 @@ def _data(
     opt,
 ):
     for start in chunk_starts:
+        short_trj = trj[start : start + chunk_length]
+        short_trj = short_trj.atom_slice(short_trj.top.select(str(selection1) + " or " + str(selection2)))
+        pairs = short_trj.top.select_pairs(selection1=selection1, selection2=selection2)
         yield (
             [
-                trj[start : start + chunk_length],
+                short_trj,
                 pairs,
                 chunk_length,
                 r_range,
