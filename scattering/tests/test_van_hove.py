@@ -16,13 +16,11 @@ from scattering.utils.constants import get_form_factor
 from scattering.utils.utils import get_unique_atoms
 
 
-@pytest.mark.parametrize("self_correlation", [True, False, "self"])
-def test_van_hove(self_correlation):
+def test_van_hove():
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
     chunk_length = 2
 
     r, t, g_r_t = compute_van_hove(trj, 
-                                   self_correlation=self_correlation,
                                    chunk_length=chunk_length)
 
     assert len(t) == 2
@@ -39,6 +37,18 @@ def test_van_hove(self_correlation):
     ax.legend()
     fig.savefig("vhf.pdf")
 
+@pytest.mark.parametrize("self_correlation", [True, False, "self"])
+def test_van_hove_self(self_correlation):
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+    chunk_length = 2
+
+    r, t, g_r_t = compute_van_hove(trj, 
+                                   self_correlation=self_correlation,
+                                   chunk_length=chunk_length)
+
+    assert len(t) == 2
+    assert len(r) == 200
+    assert np.shape(g_r_t) == (2, 200)
 
 def test_serial_van_hove():
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
