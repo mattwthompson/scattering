@@ -15,20 +15,15 @@ def test_structure_factor(weighting_factor):
         trj, Q_range=(0.5, 200), framewise_rdf=False, weighting_factor=weighting_factor
     )
 
+
 def test_partial_from_sq():
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))[:100]
 
     partials = structure_factor(
-        trj, Q_range=(0.5, 200),
-                     framewise_rdf=False,
-                     partial=True
+        trj, Q_range=(0.5, 200), framewise_rdf=False, partial=True
     )
 
-    Q, S = structure_factor(
-        trj, Q_range=(0.5, 200),
-                     framewise_rdf=False,
-                     partial=False
-    )
+    Q, S = structure_factor(trj, Q_range=(0.5, 200), framewise_rdf=False, partial=False)
     values = list(partials.values())
     S_from_partials = np.sum(values, axis=0)
 
@@ -58,6 +53,7 @@ def test_invalid_sq_weigting_factor():
             trj, Q_range=(0.5, 200), framewise_rdf=False, weighting_factor="invalid"
         )
 
+
 def test_with_master():
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))[:100]
 
@@ -71,9 +67,14 @@ def test_with_master():
     assert np.allclose(Q, master_Q)
     assert np.allclose(S, master_S, atol=1e-2)
 
+
 def test_partial():
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))[:100]
 
     Q_OO, S_OO = partial_structure_factor(
-        trj, selection1="element O", selection2="element O", Q_range=(0.5, 200), framewise_rdf=False,
+        trj,
+        selection1="element O",
+        selection2="element O",
+        Q_range=(0.5, 200),
+        framewise_rdf=False,
     )

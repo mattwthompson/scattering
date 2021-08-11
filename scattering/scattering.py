@@ -91,32 +91,38 @@ def structure_factor(
         e1 = elem1.symbol
         e2 = elem2.symbol
 
-        sq["{0}{1}".format(e1, e2)] = partial_structure_factor(trj=trj,
-                                                               selection1=f"element {e1}",
-                                                               selection2=f"element {e2}",
-                                                               Q_range=Q_range,
-                                                               L=L,
-                                                               n_points=n_points,
-                                                               framewise_rdf=framewise_rdf,
-                                                               )[1]
+        sq["{0}{1}".format(e1, e2)] = partial_structure_factor(
+            trj=trj,
+            selection1=f"element {e1}",
+            selection2=f"element {e2}",
+            Q_range=Q_range,
+            L=L,
+            n_points=n_points,
+            framewise_rdf=framewise_rdf,
+        )[1]
     if partial:
-        norm_sq = dict() 
+        norm_sq = dict()
     print("Computing normalization ... ")
     for i, q in enumerate(Q):
         num = 0
         denom = 0
 
         for elem in elements:
-            denom += _get_normalize(method=weighting_factor,
-                    c=compositions[elem.symbol],
-                    f=get_form_factor(elem.symbol, q=q/10, method=form))
+            denom += _get_normalize(
+                method=weighting_factor,
+                c=compositions[elem.symbol],
+                f=get_form_factor(elem.symbol, q=q / 10, method=form),
+            )
+
+        if weighting_factor == "fz":
+            denom = denom ** 2
 
         for (elem1, elem2) in it.product(elements, repeat=2):
             e1 = elem1.symbol
             e2 = elem2.symbol
 
-            f_a = get_form_factor(e1, q=q/10, method=form) 
-            f_b = get_form_factor(e2, q=q/10, method=form) 
+            f_a = get_form_factor(e1, q=q / 10, method=form)
+            f_b = get_form_factor(e2, q=q / 10, method=form)
 
             x_a = compositions[e1]
             x_b = compositions[e2]
@@ -126,14 +132,15 @@ def structure_factor(
             coefficient = x_a * x_b * f_a * f_b
             pre_factor = 4 * np.pi * rho
 
-            partial_sq = (integral * pre_factor)
+            partial_sq = integral * pre_factor
             num += coefficient * (partial_sq)
 
             if partial:
-                norm_sq[(elem1, elem2)] = (partial_sq * coefficient) / denom
-
-        if weighting_factor == "fz":
-            denom = denom ** 2
+                try:
+                    norm_sq[(e1, e2)][i] = (partial_sq * coefficient) / denom
+                except:
+                    norm_sq[(e1, e2)] = np.zeros((len(Q)))
+                    norm_sq[(e1, e2)][i] = (partial_sq * coefficient) / denom
 
         S[i] = num / denom
 
@@ -143,7 +150,15 @@ def structure_factor(
         return Q, S
 
 
-def partial_structure_factor(trj, selection1, selection2, Q_range=(0.5, 50), L=None, n_points=1000, framewise_rdf=False):
+def partial_structure_factor(
+    trj,
+    selection1,
+    selection2,
+    Q_range=(0.5, 50),
+    L=None,
+    n_points=1000,
+    framewise_rdf=False,
+):
     """Compute the structure factor between a pair of atoms
 
     The considered trajectory must include valid elements.
@@ -189,17 +204,13 @@ def partial_structure_factor(trj, selection1, selection2, Q_range=(0.5, 50), L=N
     )
 
     if framewise_rdf:
-        r, g_r = rdf_by_frame(
-            trj, pairs=pairs, r_range=(0, L / 2), bin_width=0.001
-        )
+        r, g_r = rdf_by_frame(trj, pairs=pairs, r_range=(0, L / 2), bin_width=0.001)
     else:
-        r, g_r = md.compute_rdf(
-            trj, pairs=pairs, r_range=(0, L / 2), bin_width=0.001
-        )
+        r, g_r = md.compute_rdf(trj, pairs=pairs, r_range=(0, L / 2), bin_width=0.001)
 
     S = np.zeros((len(Q)))
     for i, q in enumerate(Q):
-        # Fourier transform of g(r)        
+        # Fourier transform of g(r)
         integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
         S[i] = integral
 
@@ -293,5 +304,5 @@ def _get_normalize(method, c, f):
         denom = c * f
         return denom
     elif method == "al":
-        denom = c * (f**2)
+        denom = c * (f ** 2)
         return denom
