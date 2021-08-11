@@ -24,3 +24,6 @@ Once cloned, the package can be installed through Pip:
 cd scattering
 pip install -e .
 ```
+
+## Van Hove Function
+Add details later
