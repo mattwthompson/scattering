@@ -24,7 +24,16 @@ def test_partial_from_sq():
                      partial=True
     )
 
+    Q, S = structure_factor(
+        trj, Q_range=(0.5, 200),
+                     framewise_rdf=False,
+                     partial=False
+    )
+    values = list(partials.values())
+    S_from_partials = np.sum(values, axis=0)
+
     assert isinstance(partials, dict)
+    assert np.allclose(S, S_from_partials)
 
 
 @pytest.mark.parametrize("form", ["atomic", "cromer-mann"])
