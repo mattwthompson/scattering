@@ -20,6 +20,7 @@ def structure_factor(
     framewise_rdf=False,
     weighting_factor="fz",
     form="atomic",
+    partial=False,
 ):
     """Compute the structure factor through a fourier transform of
     the radial distribution function.
@@ -48,6 +49,8 @@ def structure_factor(
         Method for determining form factors. If default, form factors are estimated from
         atomic numbers.  If 'cromer-mann', form factors are determined from Cromer-Mann
         tables.
+    partial : boolean, optional, default=False
+        If true, return a dictionary of partial structure factors
 
     Returns
     -------
@@ -96,7 +99,8 @@ def structure_factor(
                                                                n_points=n_points,
                                                                framewise_rdf=framewise_rdf,
                                                                )[1]
-
+    if partial:
+        norm_sq = dict() 
     print("Computing normalization ... ")
     for i, q in enumerate(Q):
         num = 0
@@ -125,11 +129,18 @@ def structure_factor(
             partial_sq = (integral * pre_factor)
             num += coefficient * (partial_sq)
 
+            if partial:
+                norm_sq[(elem1, elem2)] = (partial_sq * coefficient) / denom
+
         if weighting_factor == "fz":
             denom = denom ** 2
 
         S[i] = num / denom
-    return Q, S
+
+    if partial:
+        return norm_sq
+    else:
+        return Q, S
 
 
 def partial_structure_factor(trj, selection1, selection2, Q_range=(0.5, 50), L=None, n_points=1000, framewise_rdf=False):

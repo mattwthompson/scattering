@@ -15,6 +15,17 @@ def test_structure_factor(weighting_factor):
         trj, Q_range=(0.5, 200), framewise_rdf=False, weighting_factor=weighting_factor
     )
 
+def test_partial_from_sq():
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))[:100]
+
+    partials = structure_factor(
+        trj, Q_range=(0.5, 200),
+                     framewise_rdf=False,
+                     partial=True
+    )
+
+    assert isinstance(partials, dict)
+
 
 @pytest.mark.parametrize("form", ["atomic", "cromer-mann"])
 def test_sq_form(form):
