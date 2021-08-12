@@ -55,8 +55,9 @@ def compute_van_hove(
     n_bins : int, optional, default=None
         The number of bins. If specified, this will override the `bin_width`
          parameter.
-    self_correlation : bool, optional, default=True
-        Whether or not to include the self-self correlations
+    self_correlation : bool or str, default=True, other: False, 'self'
+        Whether or not to include the self-self correlations.
+        If 'self', only self-correlations are computed.
     periodic : bool, optional, default=True
         Whether or not to use periodic boundary conditions
     opt : bool, optional, default=True
@@ -204,9 +205,10 @@ def compute_partial_van_hove(
         Width of the bins in nanometers.
     n_bins : int, optional, default=None
         The number of bins. If specified, this will override the `bin_width`
-         parameter.
-    self_correlation : bool, default=True
-        Whether or not to include the self-self correlations
+         parameter.qq
+    self_correlation : bool or str, default=True, other: False, 'self'
+        Whether or not to include the self-self correlations.
+        if 'self', only self-correlations are computed.
     periodic : bool, optional, default=True
         Whether or not to use periodic boundary conditions
     n_concurrent_pairs : int, default=100000
@@ -377,6 +379,12 @@ def _data(
         short_trj = trj[start : start + chunk_length]
         short_trj = short_trj.atom_slice(short_trj.top.select(str(selection1) + " or " + str(selection2)))
         pairs = short_trj.top.select_pairs(selection1=selection1, selection2=selection2)
+        if self_correlation == 'self':
+            pairs_set = np.unique(pairs)
+            pairs = np.vstack([pairs_set, pairs_set]).T
+            # TODO: Find better way to only use self-pairs
+            # This is hacky right now
+            self_correlation = False
         yield (
             [
                 short_trj,

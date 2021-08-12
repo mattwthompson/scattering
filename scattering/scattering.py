@@ -57,10 +57,10 @@ def structure_factor(
         The structure factor of the trajectory
 
     """
-    if weighting_factor not in ["fz"]:
+    if weighting_factor not in ["fz", "al"]:
         raise ValueError(
             "Invalid weighting_factor `{}` is given."
-            "  The only weighting_factor currently supported is `fz`.".format(
+            "  The only weighting_factor currently supported is `fz`, and `al`.".format(
                 weighting_factor
             )
         )
@@ -72,7 +72,6 @@ def structure_factor(
     elements = set([a.element for a in top.atoms])
 
     compositions = dict()
-    form_factors = dict()
     rdfs = dict()
 
     Q = np.logspace(np.log10(Q_range[0]), np.log10(Q_range[1]), num=n_points)
@@ -82,25 +81,22 @@ def structure_factor(
         compositions[elem.symbol] = (
             len(top.select("element {}".format(elem.symbol))) / trj.n_atoms
         )
-        form_factors[elem.symbol] = get_form_factor(
-            elem.symbol, q=Q[0] / 10, method=form
-        )
 
     for i, q in enumerate(Q):
         num = 0
         denom = 0
 
         for elem in elements:
-            denom += compositions[elem.symbol] * get_form_factor(
-                elem.symbol, q=q / 10, method=form
-            )
+            denom += _get_normalize(method=weighting_factor,
+                    c=compositions[elem.symbol],
+                    f=get_form_factor(elem.symbol, q=q/10, method=form))
 
         for (elem1, elem2) in it.product(elements, repeat=2):
             e1 = elem1.symbol
             e2 = elem2.symbol
 
-            f_a = get_form_factor(e1, q=q / 10, method=form)
-            f_b = get_form_factor(e2, q=q / 10, method=form)
+            f_a = get_form_factor(e1, q=q/10, method=form) 
+            f_b = get_form_factor(e2, q=q/10, method=form) 
 
             x_a = compositions[e1]
             x_b = compositions[e2]
@@ -123,11 +119,16 @@ def structure_factor(
                 rdfs["{0}{1}".format(e1, e2)] = g_r
             integral = simps(r ** 2 * (g_r - 1) * np.sin(q * r) / (q * r), r)
 
-            if weighting_factor == "fz":
-                pre_factor = 4 * np.pi * rho
-                partial_sq = (integral * pre_factor) + 1
-                num += (x_a * f_a * x_b * f_b) * (partial_sq)
-        S[i] = num / (denom ** 2)
+            coefficient = x_a * x_b * f_a * f_b
+            pre_factor = 4 * np.pi * rho
+
+            partial_sq = (integral * pre_factor)
+            num += coefficient * (partial_sq)
+
+        if weighting_factor == "fz":
+            denom = denom ** 2
+
+        S[i] = num / denom
     return Q, S
 
 
@@ -210,3 +211,13 @@ def compute_rdf_from_partial(trj, r_range=None):
             total += g_r * (x_a * x_b * f_a * f_b) / denom ** 2
 
     return r, total
+
+
+def _get_normalize(method, c, f):
+    """Get normalization factor"""
+    if method == "fz":
+        denom = c * f
+        return denom
+    elif method == "al":
+        denom = c * (f**2)
+        return denom
