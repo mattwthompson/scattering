@@ -250,12 +250,17 @@ def compute_partial_van_hove(
     # Check if pair is monatomic
     # If not, do not calculate self correlations
     if selection1 != selection2 and self_correlation:
-        warnings.warn(
-            "Partial VHF calculation: No self-correlations for {} and {}, setting `self_correlation` to `False`.".format(
-                selection1, selection2
+        if self_correlation == 'self':
+            raise ValueError(
+                "selection1 does not equal selection2, cannot calculate self-correltions."
             )
-        )
-        self_correlation = False
+        else:
+            warnings.warn(
+                "Partial VHF calculation: No self-correlations for {} and {}, setting `self_correlation` to `False`.".format(
+                    selection1, selection2
+                )
+            )
+            self_correlation = False
 
     # Don't need to store it, but this serves to check that dt is constant
     # Question, could we just call get_dt(~) here instead of setting the variable dt = get_dt(~)
@@ -380,15 +385,12 @@ def _data(
         pairs = short_trj.top.select_pairs(selection1=selection1, selection2=selection2)
           
         if self_correlation == 'self':
-            if selection1 != selection2:
-                raise ValueError(
-                    "selection1 does not equal selection2, cannot calculate self-correltions."
-                )
             pairs_set = np.unique(pairs)
             pairs = np.vstack([pairs_set, pairs_set]).T
             # TODO: Find better way to only use self-pairs
             # This is hacky right now
             self_correlation = False
+
         yield (
             [
                 short_trj,

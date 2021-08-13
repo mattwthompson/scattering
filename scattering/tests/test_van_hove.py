@@ -37,18 +37,18 @@ def test_van_hove():
     ax.legend()
     fig.savefig("vhf.pdf")
 
-@pytest.mark.parametrize("self_correlation", [True, False, "self"])
-def test_van_hove_self(self_correlation):
-    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
-    chunk_length = 2
-
-    r, t, g_r_t = compute_van_hove(trj, 
-                                   self_correlation=self_correlation,
-                                   chunk_length=chunk_length)
-
-    assert len(t) == 2
-    assert len(r) == 200
-    assert np.shape(g_r_t) == (2, 200)
+#@pytest.mark.parametrize("self_correlation", [True, False, "self"])
+#def test_van_hove_self(self_correlation):
+#    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+#    chunk_length = 2
+#
+#    r, t, g_r_t = compute_van_hove(trj, 
+#                                   self_correlation=self_correlation,
+#                                   chunk_length=chunk_length)
+#
+#    assert len(t) == 2
+#    assert len(r) == 200
+#    assert np.shape(g_r_t) == (2, 200)
 
 def test_serial_van_hove():
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
@@ -223,4 +223,23 @@ def test_self_partial_error():
             selection1="name O",
             selection2="name H",
             self_correlation="self",
+            parallel=True,
         )
+
+@pytest.mark.parametrize(("self_correlation", "normalization"), [(True, (0.95, 1.05)), (False, (0.95, 1.05)), ("self", (-0.05, 0.05))])
+def test_partial_van_hove(self_correlation, normalization):
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))[:100]
+    chunk_length = 2
+
+    r, g_r_t = compute_partial_van_hove(trj, 
+                                   selection1="name O",
+                                   selection2="name O",
+                                   self_correlation=self_correlation,
+                                   parallel=False,
+                                   chunk_length=chunk_length)
+
+    assert len(r) == 200
+    assert np.shape(g_r_t) == (2, 200)
+
+    # Check normalization
+    assert normalization[0] < np.mean(g_r_t[:, -10:]) < normalization[1]
