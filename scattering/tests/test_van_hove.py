@@ -210,3 +210,17 @@ def test_pvhf_error_is_tuple():
 
     with pytest.raises(ValueError, match="Dictionary key not valid. Must be a tuple"):
         vhf_from_pvhf(trj, partial_dict)
+
+def test_self_partial_error():
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+
+    chunk_length = 2
+
+    with pytest.raises(ValueError):
+        compute_partial_van_hove(
+            trj,
+            chunk_length=chunk_length,
+            selection1="name O",
+            selection2="name H",
+            self_correlation="self",
+        )
