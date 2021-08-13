@@ -1,19 +1,35 @@
 import multiprocessing
 import sys
 import itertools as it
+import warnings
 
 import numpy as np
 import mdtraj as md
 from progressbar import ProgressBar
+from itertools import combinations_with_replacement
 
-from scattering.utils.utils import get_dt
+from scattering.utils.utils import get_dt, get_unique_atoms
 from scattering.utils.constants import get_form_factor
 
 
-def compute_van_hove(trj, chunk_length, parallel=False, water=False,
-                     r_range=(0, 1.0), bin_width=0.005, n_bins=None,
-                     self_correlation=True, periodic=True, opt=True, partial=False):
-    """Compute the partial van Hove function of a trajectory
+def compute_van_hove(
+    trj,
+    chunk_length,
+    parallel=False,
+    water=False,
+    r_range=(0, 1.0),
+    bin_width=0.005,
+    n_bins=None,
+    self_correlation=True,
+    periodic=True,
+    opt=True,
+    partial=False,
+):
+    """Compute the  Van Hove function of a trajectory. Atom pairs
+    referenced in partial Van Hove functions are in alphabetical
+    order. If specific ordering of atom pairs are needed, user should
+    use compute_partial_van_hove then vhf_from_pvhf to compute total
+    Van Hove function.
 
     Parameters
     ----------
@@ -32,8 +48,11 @@ def compute_van_hove(trj, chunk_length, parallel=False, water=False,
     n_bins : int, optional, default=None
         The number of bins. If specified, this will override the `bin_width`
          parameter.
-    self_correlation : bool, default=True
-        Whether or not to include the self-self correlations
+    self_correlation : bool or str, default=True, other: False, 'self'
+        Whether or not to include the self-self correlations.
+        If 'self', only self-correlations are computed.
+    partial : bool, default = False
+        Whether or not to return a dictionary including partial Van Hove function.
 
     Returns
     -------
@@ -44,23 +63,37 @@ def compute_van_hove(trj, chunk_length, parallel=False, water=False,
     """
 
     n_physical_atoms = len([a for a in trj.top.atoms if a.element.mass > 0])
-    unique_elements = list(set([a.element for a in trj.top.atoms if a.element.mass > 0]))
+    unique_elements = list(
+        set([a.element for a in trj.top.atoms if a.element.mass > 0])
+    )
 
     if parallel:
         data = []
         for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
-            data.append([
-                trj,
-                chunk_length,
-                'element {}'.format(elem1.symbol),
-                'element {}'.format(elem2.symbol),
-                r_range,
-                bin_width,
-                n_bins,
-                self_correlation,
-                periodic,
-                opt,
-            ])
+            # Add a bool to check if self-correlations should be analyzed
+            self_bool = self_correlation
+            if elem1 != elem2:
+                self_bool = False
+                warnings.warn(
+                    "Total VHF calculation: No self-correlations for {} and {}, setting `self_correlation` to `False`.".format(
+                        elem1, elem2
+                    )
+                )
+
+            data.append(
+                [
+                    trj,
+                    chunk_length,
+                    "element {}".format(elem1.symbol),
+                    "element {}".format(elem2.symbol),
+                    r_range,
+                    bin_width,
+                    n_bins,
+                    self_bool,
+                    periodic,
+                    opt,
+                ]
+            )
 
         manager = multiprocessing.Manager()
         partial_dict = manager.dict()
@@ -77,27 +110,45 @@ def compute_van_hove(trj, chunk_length, parallel=False, water=False,
                 p.start()
 
         for proc in jobs:
-                proc.join()
+            proc.join()
 
-        r = partial_dict['r']
-        del partial_dict['r']
+        r = partial_dict["r"]
+        del partial_dict["r"]
 
     else:
         partial_dict = dict()
 
         for elem1, elem2 in it.combinations_with_replacement(unique_elements[::-1], 2):
-            print('doing {0} and {1} ...'.format(elem1, elem2))
-            r, g_r_t_partial = compute_partial_van_hove(trj=trj,
-                                                        chunk_length=chunk_length,
-                                                        selection1='element {}'.format(elem1.symbol),
-                                                        selection2='element {}'.format(elem2.symbol),
-                                                        r_range=r_range,
-                                                        bin_width=bin_width,
-                                                        n_bins=n_bins,
-                                                        self_correlation=self_correlation,
-                                                        periodic=periodic,
-                                                        opt=opt)
-            partial_dict[('element {}'.format(elem1.symbol), 'element {}'.format(elem2.symbol))] = g_r_t_partial
+            # Add a bool to check if self-correlations should be analyzed
+            self_bool = self_correlation
+            if elem1 != elem2:
+                self_bool = False
+                warnings.warn(
+                    "Total VHF calculation: No self-correlations for {} and {}, setting `self_correlation` to `False`.".format(
+                        elem1, elem2
+                    )
+                )
+
+            if elem1.symbol > elem2.symbol:
+                temp = elem1
+                elem1 = elem2
+                elem2 = temp
+            print("doing {0} and {1} ...".format(elem1, elem2))
+            r, g_r_t_partial = compute_partial_van_hove(
+                trj=trj,
+                chunk_length=chunk_length,
+                selection1="element {}".format(elem1.symbol),
+                selection2="element {}".format(elem2.symbol),
+                r_range=r_range,
+                bin_width=bin_width,
+                n_bins=n_bins,
+                self_correlation=self_bool,
+                periodic=periodic,
+                opt=opt,
+            )
+            partial_dict[
+                ("element {}".format(elem1.symbol), "element {}".format(elem2.symbol))
+            ] = g_r_t_partial
 
     if partial:
         return partial_dict
@@ -107,8 +158,12 @@ def compute_van_hove(trj, chunk_length, parallel=False, water=False,
 
     for key, val in partial_dict.items():
         elem1, elem2 = key
-        concentration1 = trj.atom_slice(trj.top.select(elem1)).n_atoms / n_physical_atoms
-        concentration2 = trj.atom_slice(trj.top.select(elem2)).n_atoms / n_physical_atoms
+        concentration1 = (
+            trj.atom_slice(trj.top.select(elem1)).n_atoms / n_physical_atoms
+        )
+        concentration2 = (
+            trj.atom_slice(trj.top.select(elem2)).n_atoms / n_physical_atoms
+        )
         form_factor1 = get_form_factor(element_name=elem1.split()[1], water=water)
         form_factor2 = get_form_factor(element_name=elem2.split()[1], water=water)
 
@@ -135,12 +190,21 @@ def worker(return_dict, data):
     key = (data[2], data[3])
     r, g_r_t_partial = compute_partial_van_hove(*data)
     return_dict[key] = g_r_t_partial
-    return_dict['r'] = r
+    return_dict["r"] = r
 
 
-def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=None,
-                             r_range=(0, 1.0), bin_width=0.005, n_bins=200,
-                             self_correlation=True, periodic=True, opt=True):
+def compute_partial_van_hove(
+    trj,
+    chunk_length=10,
+    selection1=None,
+    selection2=None,
+    r_range=(0, 1.0),
+    bin_width=0.005,
+    n_bins=200,
+    self_correlation=True,
+    periodic=True,
+    opt=True,
+):
     """Compute the partial van Hove function of a trajectory
 
     Parameters
@@ -160,8 +224,9 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     n_bins : int, optional, default=None
         The number of bins. If specified, this will override the `bin_width`
          parameter.
-    self_correlation : bool, default=True
-        Whether or not to include the self-self correlations
+    self_correlation : bool or str, default=True, other: False, 'self'
+        Whether or not to include the self-self correlations.
+        if 'self', only self-correlations are computed.
 
     Returns
     -------
@@ -170,7 +235,6 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     g_r_t : numpy.ndarray
         Van Hove function at each time and position
     """
-
     unique_elements = (
         set([a.element for a in trj.atom_slice(trj.top.select(selection1)).top.atoms]),
         set([a.element for a in trj.atom_slice(trj.top.select(selection2)).top.atoms]),
@@ -178,14 +242,30 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
 
     if any([len(val) > 1 for val in unique_elements]):
         raise UserWarning(
-            'Multiple elements found in a selection(s). Results may not be '
-            'direcitly comprable to scattering experiments.'
+            "Multiple elements found in a selection(s). Results may not be "
+            "direcitly comprable to scattering experiments."
         )
+
+    # Check if pair is monatomic
+    # If not, do not calculate self correlations
+    if selection1 != selection2 and self_correlation == True:
+        warnings.warn(
+            "Partial VHF calculation: No self-correlations for {} and {}, setting `self_correlation` to `False`.".format(
+                selection1, selection2
+            )
+        )
+        self_correlation = False
 
     # Don't need to store it, but this serves to check that dt is constant
     dt = get_dt(trj)
 
     pairs = trj.top.select_pairs(selection1=selection1, selection2=selection2)
+    if self_correlation == 'self':
+        pairs_set = np.unique(pairs)
+        pairs = np.vstack([pairs_set, pairs_set]).T
+        # TODO: Find better way to only use self-pairs
+        # This is hacky right now
+        self_correlation = False
 
     n_chunks = int(trj.n_frames / chunk_length)
 
@@ -195,7 +275,7 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
     for i in pbar(range(n_chunks)):
         times = list()
         for j in range(chunk_length):
-            times.append([chunk_length*i, chunk_length*i+j])
+            times.append([chunk_length * i, chunk_length * i + j])
         r, g_r_t_frame = md.compute_rdf_t(
             traj=trj,
             pairs=pairs,
@@ -214,3 +294,70 @@ def compute_partial_van_hove(trj, chunk_length=10, selection1=None, selection2=N
         g_r_t += g_r_t_frame
 
     return r, g_r_t
+
+
+def vhf_from_pvhf(trj, partial_dict, water=False):
+    """
+    Compute the total Van Hove function from partial Van Hove functions
+
+
+    Parameters
+    ----------
+    trj : mdtrj.Trajectory
+        trajectory on which partial vhf were calculated form
+    partial_dict : dict
+        dictionary containing partial vhf as a np.array.
+        Key is a tuple of len 2 with 2 atom types
+
+    Return
+    -------
+    total_grt : numpy.ndarray
+        Total Van Hove Function generated from addition of partial Van Hove Functions
+    """
+    unique_atoms = get_unique_atoms(trj)
+    all_atoms = [atom for atom in trj.topology.atoms]
+
+    norm_coeff = 0
+    dict_shape = list(partial_dict.values())[0][0].shape
+    total_grt = np.zeros(dict_shape)
+
+    for atom_pair in partial_dict.keys():
+        # checks if key is a tuple
+        if isinstance(atom_pair, tuple) == False:
+            raise ValueError("Dictionary key not valid. Must be a tuple.")
+        for atom in atom_pair:
+            # checks if the atoms in tuple pair are atom types
+            if type(atom) != type(unique_atoms[0]):
+                raise ValueError(
+                    "Dictionary key not valid. Must be type `MDTraj.Atom`."
+                )
+            # checks if atoms are in the trajectory
+            if atom not in all_atoms:
+                raise ValueError(
+                    f"Dictionary key not valid, `Atom` {atom} not in MDTraj trajectory."
+                )
+
+        # checks if key has two atoms
+        if len(atom_pair) != 2:
+            raise ValueError(
+                "Dictionary key not valid. Must only have 2 atoms per pair."
+            )
+
+        atom1 = atom_pair[0]
+        atom2 = atom_pair[1]
+        coeff = (
+            get_form_factor(element_name=f"{atom1.element.symbol}", water=False)
+            * get_form_factor(element_name=f"{atom2.element.symbol}", water=False)
+            * len(trj.topology.select(f"name {atom1.name}"))
+            / (trj.n_atoms)
+            * len(trj.topology.select(f"name {atom2.name}"))
+            / (trj.n_atoms)
+        )
+
+        normalized_pvhf = coeff * partial_dict[atom_pair]
+        norm_coeff += coeff
+        total_grt = np.add(total_grt, normalized_pvhf)
+
+    total_grt /= norm_coeff
+
+    return total_grt
