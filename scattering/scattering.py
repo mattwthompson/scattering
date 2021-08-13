@@ -34,7 +34,7 @@ def structure_factor(
     ----------
     trj : mdtraj.Trajectory
         A trajectory for which the structure factor is to be computed.
-    Q_range : list or np.ndarray, default=(0.5, 50)
+    Q_range : list or np.ndarray, size=(2,), default=(0.5, 50)
         Minimum and maximum Values of the scattering vector, in `1/nm`, to be
         consdered.
     n_points : int, default=1000
