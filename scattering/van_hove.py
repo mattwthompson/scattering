@@ -55,9 +55,8 @@ def compute_van_hove(
     n_bins : int, optional, default=None
         The number of bins. If specified, this will override the `bin_width`
          parameter.
-    self_correlation : bool or str, default=True, other: False, 'self'
+    self_correlation : bool or str, default=True, other: False
         Whether or not to include the self-self correlations.
-        If 'self', only self-correlations are computed.
     periodic : bool, optional, default=True
         Whether or not to use periodic boundary conditions
     opt : bool, optional, default=True
@@ -379,7 +378,12 @@ def _data(
         short_trj = trj[start : start + chunk_length]
         short_trj = short_trj.atom_slice(short_trj.top.select(str(selection1) + " or " + str(selection2)))
         pairs = short_trj.top.select_pairs(selection1=selection1, selection2=selection2)
+          
         if self_correlation == 'self':
+            if selection1 != selection2:
+                raise ValueError(
+                    "selection1 does not equal selection2, cannot calculate self-correltions."
+                )
             pairs_set = np.unique(pairs)
             pairs = np.vstack([pairs_set, pairs_set]).T
             # TODO: Find better way to only use self-pairs
