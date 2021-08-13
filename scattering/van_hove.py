@@ -250,7 +250,7 @@ def compute_partial_van_hove(
     # Check if pair is monatomic
     # If not, do not calculate self correlations
     if selection1 != selection2 and self_correlation:
-        if self_correlation == 'self':
+        if self_correlation == "self":
             raise ValueError(
                 "selection1 does not equal selection2, cannot calculate self-correltions."
             )
@@ -381,15 +381,21 @@ def _data(
 ):
     for start in chunk_starts:
         short_trj = trj[start : start + chunk_length]
-        short_trj = short_trj.atom_slice(short_trj.top.select(str(selection1) + " or " + str(selection2)))
+        short_trj = short_trj.atom_slice(
+            short_trj.top.select(str(selection1) + " or " + str(selection2))
+        )
         pairs = short_trj.top.select_pairs(selection1=selection1, selection2=selection2)
-          
-        if self_correlation == 'self':
+
+        if self_correlation == "self":
             pairs_set = np.unique(pairs)
             pairs = np.vstack([pairs_set, pairs_set]).T
             # TODO: Find better way to only use self-pairs
             # This is hacky right now
-            self_correlation = False
+            self_pass = False
+        elif self_correlation == True:
+            self_pass = True
+        elif self_correlation == False:
+            self_pass = False
 
         yield (
             [
@@ -399,7 +405,7 @@ def _data(
                 r_range,
                 bin_width,
                 n_bins,
-                self_correlation,
+                self_pass,
                 periodic,
                 n_concurrent_pairs,
                 opt,
