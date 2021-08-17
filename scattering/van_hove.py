@@ -340,6 +340,8 @@ def vhf_from_pvhf(trj, partial_dict, element_dict, water=False):
         if isinstance(atom_pair, tuple) == False:
             raise ValueError("Dictionary key not valid. Must be a tuple.")
         for atom in atom_pair:
+            if not isinstance(atom, str):
+                raise ValueError("Atom name not valid, must be type(str).")
             if atom not in atom_names:
                 raise ValueError(
                     f"Dictionary key not valid, `Atom` {atom} not in MDTraj trajectory."

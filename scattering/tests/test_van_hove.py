@@ -163,6 +163,25 @@ def test_pvhf_error_2_atoms_per_pair():
         vhf_from_pvhf(trj, partial_dict, element_dict)
 
 
+def test_pvhf_invalid_atom():
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+    atom_names = list(set([atom.name for atom in trj.topology.atoms]))
+    element_dict = {}
+    for atom in trj.topology.atoms:
+        element_dict[atom.name] = atom.element.symbol
+    partial_dict = {}
+    x = compute_partial_van_hove(
+        trj,
+        chunk_length=20,
+        selection1="name O",
+        selection2="name O",
+    )
+    partial_dict[("O", 2)] = x[1]
+
+    with pytest.raises(ValueError, match="Atom name not valid, must be type."):
+        vhf_from_pvhf(trj, partial_dict, element_dict)
+
+
 def test_pvhf_error_atoms_in_trj():
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
     atom_names = list(set([atom.name for atom in trj.topology.atoms]))
