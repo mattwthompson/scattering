@@ -299,7 +299,7 @@ def compute_partial_van_hove(
     return r, g_r_t
 
 
-def vhf_from_pvhf(trj, partial_dict, water=False):
+def vhf_from_pvhf(trj, partial_dict, element_dict, water=False):
     """
     Compute the total Van Hove function from partial Van Hove functions
 
@@ -307,10 +307,13 @@ def vhf_from_pvhf(trj, partial_dict, water=False):
     Parameters
     ----------
     trj : mdtrj.Trajectory
-        trajectory on which partial vhf were calculated form
-    partial_dict : dict
-        dictionary containing partial vhf as a np.array.
-        Key is a tuple of len 2 with 2 atom types
+        Trajectory in which partial VHFs were calculated from
+    partial_dict
+        Dictionary containing the partial VHFs as a np.array.
+        Key is a tuple like (atom1.name, atom2.name) of len=2.
+    element_dict: dict
+        Dictionary containing element names corresponding to the atom name.
+        Key is an atom name.
 
     Return
     -------
@@ -318,24 +321,28 @@ def vhf_from_pvhf(trj, partial_dict, water=False):
         Total Van Hove Function generated from addition of partial Van Hove Functions
     """
     unique_atoms = get_unique_atoms(trj)
-    all_atoms = [atom for atom in trj.topology.atoms]
+    atom_names = set([atom.name for atom in trj.topology.atoms])
 
     norm_coeff = 0
     dict_shape = list(partial_dict.values())[0][0].shape
     total_grt = np.zeros(dict_shape)
+
+    # Validate element_dict
+    ele_key_type = list(set(type(k) for k in element_dict.keys()))
+    ele_value_type = list(set(type(k) for k in element_dict.values()))
+    if ele_key_type[0] != str or len(ele_key_type) > 1:
+        raise ValueError(f"Dictionary keys not valid, must be type(str).")
+    if ele_value_type[0] != str or len(ele_value_type) > 1:
+        raise ValueError(f"Dictionary values not valid, must be type(str).")
 
     for atom_pair in partial_dict.keys():
         # checks if key is a tuple
         if isinstance(atom_pair, tuple) == False:
             raise ValueError("Dictionary key not valid. Must be a tuple.")
         for atom in atom_pair:
-            # checks if the atoms in tuple pair are atom types
-            if type(atom) != type(unique_atoms[0]):
-                raise ValueError(
-                    "Dictionary key not valid. Must be type `MDTraj.Atom`."
-                )
-            # checks if atoms are in the trajectory
-            if atom not in all_atoms:
+            if not isinstance(atom, str):
+                raise ValueError("Atom name not valid, must be type(str).")
+            if atom not in atom_names:
                 raise ValueError(
                     f"Dictionary key not valid, `Atom` {atom} not in MDTraj trajectory."
                 )
@@ -349,11 +356,11 @@ def vhf_from_pvhf(trj, partial_dict, water=False):
         atom1 = atom_pair[0]
         atom2 = atom_pair[1]
         coeff = (
-            get_form_factor(element_name=f"{atom1.element.symbol}", water=False)
-            * get_form_factor(element_name=f"{atom2.element.symbol}", water=False)
-            * len(trj.topology.select(f"name {atom1.name}"))
+            get_form_factor(element_name=f"{element_dict[atom1]}", water=False)
+            * get_form_factor(element_name=f"{element_dict[atom2]}", water=False)
+            * len(trj.topology.select(f"name {atom1}"))
             / (trj.n_atoms)
-            * len(trj.topology.select(f"name {atom2.name}"))
+            * len(trj.topology.select(f"name {atom2}"))
             / (trj.n_atoms)
         )
 
