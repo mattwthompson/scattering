@@ -307,13 +307,13 @@ def vhf_from_pvhf(trj, partial_dict, element_dict, water=False):
     Parameters
     ----------
     trj : mdtrj.Trajectory
-        trajectory on which partial vhf were calculated form
-    partial_dict : dict
-        dictionary containing partial vhf as a np.array.
-        Key is a tuple of len 2 with 2 atom name
+        Trajectory in which partial VHFs were calculated from
+    partial_dict
+        Dictionary containing the partial VHFs as a np.array.
+        Key is a tuple like (atom1.name, atom2.name) of len=2.
     element_dict: dict
-        dictionary containing element names corresponding to the atom name.
-        Key is an atom name 
+        Dictionary containing element names corresponding to the atom name.
+        Key is an atom name.
 
     Return
     -------
@@ -326,6 +326,14 @@ def vhf_from_pvhf(trj, partial_dict, element_dict, water=False):
     norm_coeff = 0
     dict_shape = list(partial_dict.values())[0][0].shape
     total_grt = np.zeros(dict_shape)
+
+    # Validate element_dict
+    ele_key_type = list(set(type(k) for k in element_dict.keys()))
+    ele_value_type = list(set(type(k) for k in element_dict.values()))
+    if ele_key_type[0] != str or len(ele_key_type) > 1:
+        raise ValueError(f"Dictionary keys not valid, must be type(str).")
+    if ele_value_type[0] != str or len(ele_value_type) > 1:
+        raise ValueError(f"Dictionary values not valid, must be type(str).")
 
     for atom_pair in partial_dict.keys():
         # checks if key is a tuple

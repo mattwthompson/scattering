@@ -20,8 +20,7 @@ def test_van_hove():
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
     chunk_length = 2
 
-    r, t, g_r_t = compute_van_hove(trj, 
-                                   chunk_length=chunk_length)
+    r, t, g_r_t = compute_van_hove(trj, chunk_length=chunk_length)
 
     assert len(t) == 2
     assert len(r) == 200
@@ -37,18 +36,20 @@ def test_van_hove():
     ax.legend()
     fig.savefig("vhf.pdf")
 
+
 @pytest.mark.parametrize("self_correlation", [True, False, "self"])
 def test_van_hove_self(self_correlation):
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
     chunk_length = 2
 
-    r, t, g_r_t = compute_van_hove(trj, 
-                                   self_correlation=self_correlation,
-                                   chunk_length=chunk_length)
+    r, t, g_r_t = compute_van_hove(
+        trj, self_correlation=self_correlation, chunk_length=chunk_length
+    )
 
     assert len(t) == 2
     assert len(r) == 200
     assert np.shape(g_r_t) == (2, 200)
+
 
 def test_serial_van_hove():
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
@@ -104,17 +105,15 @@ def test_self_warning(parallel):
 def test_vhf_from_pvhf():
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
 
-    #obtaining element dictionaries with element name values and corresponding atom name keys
+    # obtaining element dictionaries with element name values and corresponding atom name keys
     element_dict = {}
     for atom in trj.topology.atoms:
         element_dict[atom.name] = atom.element.symbol
-
 
     # obtaining g_r_t from total func
     chunk_length = 20
     r, t, g_r_t = compute_van_hove(trj, chunk_length=chunk_length)
     partial_dict = compute_van_hove(trj, chunk_length=chunk_length, partial=True)
-
 
     # obtating pvhf dict of np.array as values and atom name as keys
     partial_dict = {}
@@ -184,7 +183,8 @@ def test_pvhf_error_atoms_in_trj():
     partial_dict[(atom, atom_names[0])] = x[1]
 
     with pytest.raises(
-        ValueError, match= f"Dictionary key not valid, `Atom` {atom} not in MDTraj trajectory."
+        ValueError,
+        match=f"Dictionary key not valid, `Atom` {atom} not in MDTraj trajectory.",
     ):
         vhf_from_pvhf(trj, partial_dict, element_dict)
 
@@ -196,7 +196,7 @@ def test_pvhf_error_is_tuple():
     for atom in trj.topology.atoms:
         element_dict[atom.name] = atom.element.symbol
 
-    key = frozenset(('H', 'O'))
+    key = frozenset(("H", "O"))
     partial_dict = {}
     x = compute_partial_van_hove(
         trj,
@@ -208,6 +208,36 @@ def test_pvhf_error_is_tuple():
 
     with pytest.raises(ValueError, match="Dictionary key not valid. Must be a tuple"):
         vhf_from_pvhf(trj, partial_dict, element_dict)
+
+
+def test_pvhf_element_error_is_tuple():
+    trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
+    unique_atoms = get_unique_atoms(trj)
+    element_dict = {}
+    for atom in trj.topology.atoms:
+        element_dict[atom.name] = atom.element.symbol
+
+    key = frozenset(("H", "O"))
+    partial_dict = {}
+    x = compute_partial_van_hove(
+        trj,
+        chunk_length=20,
+        selection1="name O",
+        selection2="name O",
+    )
+    partial_dict[key] = x[1]
+
+    # Set bad dictionary key
+    element_dict[2] = "C"
+    with pytest.raises(ValueError, match="Dictionary keys not valid"):
+        vhf_from_pvhf(trj, partial_dict, element_dict)
+
+    # Set bad dictionary value
+    del element_dict[2]
+    element_dict["Na"] = 2
+    with pytest.raises(ValueError, match="Dictionary values not valid"):
+        vhf_from_pvhf(trj, partial_dict, element_dict)
+
 
 def test_self_partial_error():
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
