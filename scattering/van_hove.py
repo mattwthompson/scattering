@@ -48,8 +48,8 @@ def compute_van_hove(
     n_bins : int, optional, default=None
         The number of bins. If specified, this will override the `bin_width`
          parameter.
-    self_correlation : bool, default=True
-        Whether or not to include the self-self correlations
+    self_correlation : bool or str, default=True, other: False
+        Whether or not to include the self-self correlations.
     partial : bool, default = False
         Whether or not to return a dictionary including partial Van Hove function.
 
@@ -223,8 +223,9 @@ def compute_partial_van_hove(
     n_bins : int, optional, default=None
         The number of bins. If specified, this will override the `bin_width`
          parameter.
-    self_correlation : bool, default=True
-        Whether or not to include the self-self correlations
+    self_correlation : bool or str, default=True, other: False, 'self'
+        Whether or not to include the self-self correlations.
+        if 'self', only self-correlations are computed.
 
     Returns
     -------
@@ -244,6 +245,21 @@ def compute_partial_van_hove(
             "direcitly comprable to scattering experiments."
         )
 
+    # Don't need to store it, but this serves to check that dt is constant
+    dt = get_dt(trj)
+
+    pairs = trj.top.select_pairs(selection1=selection1, selection2=selection2)
+    if self_correlation == "self":
+        if selection1 != selection2:
+            raise ValueError(
+                "selection1 does not equal selection2, cannot calculate self-correltions."
+            )
+        pairs_set = np.unique(pairs)
+        pairs = np.vstack([pairs_set, pairs_set]).T
+        # TODO: Find better way to only use self-pairs
+        # This is hacky right now
+        self_correlation = False
+
     # Check if pair is monatomic
     # If not, do not calculate self correlations
     if selection1 != selection2 and self_correlation == True:
@@ -253,11 +269,6 @@ def compute_partial_van_hove(
             )
         )
         self_correlation = False
-
-    # Don't need to store it, but this serves to check that dt is constant
-    dt = get_dt(trj)
-
-    pairs = trj.top.select_pairs(selection1=selection1, selection2=selection2)
 
     n_chunks = int(trj.n_frames / chunk_length)
 

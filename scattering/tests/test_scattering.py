@@ -7,7 +7,7 @@ from scattering.scattering import structure_factor
 from scattering.utils.io import get_fn
 
 
-@pytest.mark.parametrize("weighting_factor", ["fz"])
+@pytest.mark.parametrize("weighting_factor", ["fz", "al"])
 def test_structure_factor(weighting_factor):
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))[:100]
 
