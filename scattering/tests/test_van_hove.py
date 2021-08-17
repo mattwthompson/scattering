@@ -185,7 +185,7 @@ def test_pvhf_invalid_atom():
 def test_pvhf_error_atoms_in_trj():
     trj = md.load(get_fn("spce.xtc"), top=get_fn("spce.gro"))
     atom_names = list(set([atom.name for atom in trj.topology.atoms]))
-    atom = md.core.topology.Atom(
+    wrong_atom = md.core.topology.Atom(
         name="Na", element=md.core.element.sodium, index=0, residue=1
     )
     element_dict = {}
@@ -199,11 +199,11 @@ def test_pvhf_error_atoms_in_trj():
         selection1="name O",
         selection2="name O",
     )
-    partial_dict[(atom, atom_names[0])] = x[1]
+    partial_dict[(wrong_atom.name, atom_names[0])] = x[1]
 
     with pytest.raises(
         ValueError,
-        match=f"Dictionary key not valid, `Atom` {atom} not in MDTraj trajectory.",
+        match=f"Dictionary key not valid, `Atom` {wrong_atom.name} not in MDTraj trajectory.",
     ):
         vhf_from_pvhf(trj, partial_dict, element_dict)
 
