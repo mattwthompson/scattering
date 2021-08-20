@@ -44,7 +44,7 @@ def find_nearest(arr, val):
 def find_all_minima(arr):
     """
     Find all local minima in a 1-D array, defined as value in which each
-    neighbor is greater. See https://stackoverflow.com/a/4625132/4248961
+    neighbor is greater. Also includes global minima. See https://stackoverflow.com/a/4625132/4248961
 
     Parameters
     ----------
@@ -59,6 +59,10 @@ def find_all_minima(arr):
 
     checks = np.r_[True, arr[1:] < arr[:-1]] & np.r_[arr[:-1] < arr[1:], True]
     minima = np.where(checks)[0]
+    global_min = min(arr)
+    global_r = np.where(arr == global_min)[0]
+    minima = np.append(minima, global_r)
+    minima.sort()
     return minima
 
 def find_all_maxima(arr):
